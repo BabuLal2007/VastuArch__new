@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart 3D Home Modeler & Vastu Designer</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏛️</text></svg>">
+    
+    <!-- External Custom Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- CDN Libraries: Tailwind CSS for Utility Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- CDN Libraries: Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- CDN Libraries: Three.js for 3D WebGL Rendering, Orbit & PointerLock Controls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+</head>
+<body class="h-screen flex overflow-hidden text-gray-800">
+
+    <!-- Sidebar Control Panel -->
+    <div class="w-96 bg-white shadow-2xl z-10 flex flex-col h-full border-r border-gray-200 transition-all duration-300 relative">
+        <div class="p-6 bg-blue-600 text-white flex justify-between items-center">
+            <h1 class="text-xl font-bold"><i class="fa-solid fa-house-chimney-medical text-blue-200 mr-2"></i> Smart Modeler</h1>
+            <span id="step-indicator" class="bg-blue-800 px-3 py-1 rounded-full text-xs font-semibold">Step 1/6</span>
+        </div>
+
+        <div class="p-6 flex-1 overflow-y-auto flex flex-col justify-between" id="steps-container">
+            <div>
+                <!-- Multi-Floor Management Bar -->
+                <div id="floor-nav-bar" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 shadow-sm flex items-center justify-between">
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-layer-group text-blue-600 mr-1.5 text-sm"></i>
+                        <span class="font-bold text-gray-700 text-xs tracking-wider">FLOORS</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <div id="floor-buttons-list" class="bg-white p-1 rounded-lg flex gap-1 border border-gray-200">
+                            <!-- Dynamically populated floor buttons -->
+                        </div>
+                        <button onclick="addNewFloor()" class="bg-blue-100 text-blue-600 font-bold px-2.5 py-1 rounded-lg hover:bg-blue-200 text-sm transition cursor-pointer" title="Add Floor">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                        <button onclick="removeCurrentFloor()" class="bg-red-100 text-red-600 font-bold px-2.5 py-1 rounded-lg hover:bg-red-200 text-sm transition cursor-pointer" title="Delete Current Floor">
+                            <i class="fa-solid fa-minus"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Real-Time Construction Cost & Material Estimator Card -->
+                <div id="cost-estimator-card" class="bg-white border border-gray-200 rounded-xl p-4 shadow-md mb-4 transition-all">
+                    <!-- Collapsible Header (Always Visible / Click to Toggle) -->
+                    <div onclick="toggleCostEstimator()" class="cursor-pointer flex items-center justify-between select-none">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm shadow-xs">
+                                <i class="fa-solid fa-calculator"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="font-bold text-gray-800 text-xs tracking-wider uppercase">Cost & Materials</span>
+                                    <span id="cost-badge-tier" class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-1.5 py-0.5 rounded">Standard</span>
+                                </div>
+                                <div class="text-[11px] font-semibold text-emerald-600" id="cost-header-total">₹ 24,00,000 (1,500 sq.ft)</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="cost-header-badge" class="text-[11px] font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-200">1 Flr</span>
+                            <i id="cost-toggle-chevron" class="fa-solid fa-chevron-down text-gray-400 text-xs transition-transform duration-200"></i>
+                        </div>
+                    </div>
+
+                    <!-- Collapsible Body Content -->
+                    <div id="cost-estimator-body" class="pt-3.5 mt-3 border-t border-gray-100 space-y-3.5">
+                        <!-- Dynamic Area Display -->
+                        <div class="bg-gray-50 rounded-lg p-2.5 border border-gray-200 flex justify-between items-center text-xs">
+                            <div>
+                                <span class="text-gray-500 block text-[10px] uppercase font-bold tracking-wider">Total Built-Up Area</span>
+                                <span id="cost-area-sqft" class="font-extrabold text-gray-800 text-sm">1,500 <span class="text-xs font-normal text-gray-500">Sq. Ft.</span></span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-gray-500 block text-[10px] uppercase font-bold tracking-wider">Square Yards (Gaj)</span>
+                                <span id="cost-area-gaj" class="font-extrabold text-blue-600 text-sm">166.7 <span class="text-xs font-normal text-gray-500">Gaj</span></span>
+                            </div>
+                        </div>
+
+                        <!-- Quality Tier Selector & Manual Custom Rate Input -->
+                        <div>
+                            <div class="flex justify-between items-center mb-1.5">
+                                <label class="block text-[11px] font-bold text-gray-600 uppercase tracking-wider">Construction Quality</label>
+                                <span id="cost-tier-rate-label" class="text-blue-600 font-bold text-xs">₹1,600 / sq.ft</span>
+                            </div>
+                            <div class="grid grid-cols-4 gap-1 bg-gray-100 p-1 rounded-lg text-center text-xs">
+                                <button type="button" onclick="setConstructionTier('standard')" id="btn-tier-standard" class="tier-btn py-1.5 rounded-md font-bold transition text-[11px] bg-white text-blue-700 shadow-xs border border-gray-200 cursor-pointer">
+                                    Standard
+                                </button>
+                                <button type="button" onclick="setConstructionTier('premium')" id="btn-tier-premium" class="tier-btn py-1.5 rounded-md font-medium transition text-[11px] text-gray-600 hover:text-blue-600 cursor-pointer">
+                                    Premium
+                                </button>
+                                <button type="button" onclick="setConstructionTier('luxury')" id="btn-tier-luxury" class="tier-btn py-1.5 rounded-md font-medium transition text-[11px] text-gray-600 hover:text-blue-600 cursor-pointer">
+                                    Luxury
+                                </button>
+                                <button type="button" onclick="setConstructionTier('custom')" id="btn-tier-custom" class="tier-btn py-1.5 rounded-md font-medium transition text-[11px] text-gray-600 hover:text-blue-600 cursor-pointer">
+                                    Custom
+                                </button>
+                            </div>
+
+                            <!-- Manual Custom Rate Input Field -->
+                            <div id="custom-rate-container" class="mt-2 flex items-center justify-between gap-2 bg-blue-50/70 p-2 rounded-lg border border-blue-200">
+                                <label for="custom-cost-rate" class="text-[11px] font-semibold text-gray-700 whitespace-nowrap flex items-center gap-1.5">
+                                    <i class="fa-solid fa-pen-to-square text-blue-600"></i> Custom Rate (₹/sq.ft):
+                                </label>
+                                <div class="relative w-28">
+                                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-bold">₹</span>
+                                    <input type="number" id="custom-cost-rate" value="1800" min="500" max="50000" step="50" oninput="onCustomRateInput()" class="w-full pl-6 pr-2 py-1 bg-white border border-gray-300 rounded text-xs font-bold text-gray-800 outline-none focus:border-blue-500 shadow-xs">
+                                </div>
+                            </div>
+
+                            <p id="cost-tier-desc" class="text-[10px] text-gray-500 mt-1.5 italic leading-tight">Standard vitrified tiles, basic fittings, standard grade cement & steel.</p>
+                        </div>
+
+                        <!-- Total Cost & Progress Bar Breakdown -->
+                        <div class="bg-gradient-to-br from-slate-900 to-blue-950 rounded-xl p-3 text-white shadow-sm border border-slate-800">
+                            <span class="text-[10px] uppercase tracking-wider text-blue-200 font-bold block">Total Estimated Cost (INR)</span>
+                            <div id="cost-total-display" class="text-xl font-black tracking-tight text-white mt-0.5">₹ 24,00,000</div>
+                            
+                            <!-- Segmented Progress Bar -->
+                            <div class="mt-2.5">
+                                <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden flex shadow-inner">
+                                    <div id="bar-structure" class="bg-blue-500 h-full transition-all" style="width: 50%" title="Structure / Civil: 50%"></div>
+                                    <div id="bar-finishing" class="bg-amber-400 h-full transition-all" style="width: 30%" title="Finishing / Flooring / Painting: 30%"></div>
+                                    <div id="bar-services" class="bg-emerald-400 h-full transition-all" style="width: 20%" title="Electrical & Plumbing: 20%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Cost Categories List -->
+                            <div class="grid grid-cols-3 gap-1 mt-2.5 pt-2 border-t border-slate-800 text-[10px]">
+                                <div>
+                                    <span class="text-slate-300 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Structure (50%)</span>
+                                    <span id="cost-part-structure" class="font-bold text-white block mt-0.5">₹ 12,00,000</span>
+                                </div>
+                                <div>
+                                    <span class="text-slate-300 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Finishing (30%)</span>
+                                    <span id="cost-part-finishing" class="font-bold text-white block mt-0.5">₹ 7,20,000</span>
+                                </div>
+                                <div>
+                                    <span class="text-slate-300 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> MEP (20%)</span>
+                                    <span id="cost-part-services" class="font-bold text-white block mt-0.5">₹ 4,80,000</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Material Estimation Breakdown -->
+                        <div>
+                            <div class="text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+                                <span><i class="fa-solid fa-boxes-stacked text-blue-600 mr-1"></i> Material Estimation</span>
+                                <span class="text-[9px] font-normal text-gray-400">Thumb-rule based</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                <!-- Cement -->
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg p-2 hover:bg-blue-50/40 transition">
+                                    <div class="flex items-center justify-between text-gray-500 text-[10px]">
+                                        <span>Cement</span>
+                                        <i class="fa-solid fa-layer-group text-slate-400"></i>
+                                    </div>
+                                    <div id="mat-cement" class="font-extrabold text-gray-800 text-sm mt-0.5">600 <span class="text-[10px] font-normal text-gray-500">Bags</span></div>
+                                    <div class="text-[9px] text-gray-400">~0.4 bags / sq.ft</div>
+                                </div>
+
+                                <!-- Steel -->
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg p-2 hover:bg-blue-50/40 transition">
+                                    <div class="flex items-center justify-between text-gray-500 text-[10px]">
+                                        <span>Steel (Saria)</span>
+                                        <i class="fa-solid fa-bars text-slate-400"></i>
+                                    </div>
+                                    <div id="mat-steel" class="font-extrabold text-gray-800 text-sm mt-0.5">5,700 <span class="text-[10px] font-normal text-gray-500">Kg</span></div>
+                                    <div id="mat-steel-ton" class="text-[9px] text-blue-600 font-medium">5.70 Tonnes (~3.8 kg/sq.ft)</div>
+                                </div>
+
+                                <!-- Bricks -->
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg p-2 hover:bg-blue-50/40 transition">
+                                    <div class="flex items-center justify-between text-gray-500 text-[10px]">
+                                        <span>Red Bricks</span>
+                                        <i class="fa-solid fa-cubes text-slate-400"></i>
+                                    </div>
+                                    <div id="mat-bricks" class="font-extrabold text-gray-800 text-sm mt-0.5">13,500 <span class="text-[10px] font-normal text-gray-500">Pcs</span></div>
+                                    <div class="text-[9px] text-gray-400">~9 bricks / sq.ft</div>
+                                </div>
+
+                                <!-- Sand -->
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg p-2 hover:bg-blue-50/40 transition">
+                                    <div class="flex items-center justify-between text-gray-500 text-[10px]">
+                                        <span>Sand (Reti)</span>
+                                        <i class="fa-solid fa-mountain text-slate-400"></i>
+                                    </div>
+                                    <div id="mat-sand" class="font-extrabold text-gray-800 text-sm mt-0.5">2,700 <span class="text-[10px] font-normal text-gray-500">cu.ft</span></div>
+                                    <div class="text-[9px] text-gray-400">~1.8 cu.ft / sq.ft</div>
+                                </div>
+
+                                <!-- Aggregate -->
+                                <div class="col-span-2 bg-gray-50 border border-gray-200 rounded-lg p-2 hover:bg-blue-50/40 transition flex items-center justify-between">
+                                    <div>
+                                        <div class="text-gray-500 text-[10px]">Aggregate (Rori / Bajri)</div>
+                                        <div id="mat-aggregate" class="font-extrabold text-gray-800 text-sm mt-0.5">2,025 <span class="text-[10px] font-normal text-gray-500">cu.ft</span></div>
+                                    </div>
+                                    <div class="text-right text-[10px] text-gray-400">
+                                        <div>~1.35 cu.ft / sq.ft</div>
+                                        <div class="text-blue-600 font-medium text-[9px]">Coarse Concrete Mix</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 1: Plot Dimensions -->
+                <div id="step-1" class="step-content active">
+                    <h2 class="text-lg font-semibold mb-4 text-gray-700 border-b pb-2">1. Plot Dimensions</h2>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Plot Shape Type</label>
+                        <div class="flex gap-2">
+                            <button onclick="setPlotType('proper')" id="btn-proper" class="flex-1 py-2 border-2 border-blue-500 bg-blue-50 text-blue-700 rounded-md font-medium transition">Proper (Rect)</button>
+                            <button onclick="setPlotType('tilt')" id="btn-tilt" class="flex-1 py-2 border-2 border-gray-200 bg-gray-50 text-gray-500 rounded-md font-medium transition">Tilt (Custom)</button>
+                        </div>
+                    </div>
+
+                    <div id="proper-inputs" class="space-y-3 mt-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1 text-gray-600">Front Width (ft)</label>
+                            <input type="number" id="plot-width" value="30" class="w-full border rounded p-2 outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1 text-gray-600">Length/Depth (ft)</label>
+                            <input type="number" id="plot-length" value="50" class="w-full border rounded p-2 outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <div id="tilt-inputs" class="space-y-3 mt-4 hidden">
+                        <p class="text-xs text-orange-500 mb-2"><i class="fa-solid fa-circle-info"></i> Enter individual wall sizes for irregular shapes.</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="block text-xs font-medium mb-1">Front Wall</label><input type="number" id="tilt-front" value="30" class="w-full border rounded p-2"></div>
+                            <div><label class="block text-xs font-medium mb-1">Back Wall</label><input type="number" id="tilt-back" value="32" class="w-full border rounded p-2"></div>
+                            <div><label class="block text-xs font-medium mb-1">Left Wall</label><input type="number" id="tilt-left" value="50" class="w-full border rounded p-2"></div>
+                            <div><label class="block text-xs font-medium mb-1">Right Wall</label><input type="number" id="tilt-right" value="52" class="w-full border rounded p-2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Surroundings & Door -->
+                <div id="step-2" class="step-content">
+                    <h2 class="text-lg font-semibold mb-4 text-gray-700 border-b pb-2">2. Road & Main Door</h2>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Road Location (Checked roads will render in 3D)</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="flex items-center space-x-2 bg-gray-50 p-2 rounded border cursor-pointer hover:bg-gray-100">
+                                <input type="checkbox" id="road-front" checked class="form-checkbox h-4 w-4 text-blue-600"><span class="text-sm">Front</span>
+                            </label>
+                            <label class="flex items-center space-x-2 bg-gray-50 p-2 rounded border cursor-pointer hover:bg-gray-100">
+                                <input type="checkbox" id="road-back" class="form-checkbox h-4 w-4 text-blue-600"><span class="text-sm">Back</span>
+                            </label>
+                            <label class="flex items-center space-x-2 bg-gray-50 p-2 rounded border cursor-pointer hover:bg-gray-100">
+                                <input type="checkbox" id="road-left" class="form-checkbox h-4 w-4 text-blue-600"><span class="text-sm">Left</span>
+                            </label>
+                            <label class="flex items-center space-x-2 bg-gray-50 p-2 rounded border cursor-pointer hover:bg-gray-100">
+                                <input type="checkbox" id="road-right" class="form-checkbox h-4 w-4 text-blue-600"><span class="text-sm">Right</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Main Door Direction</label>
+                        <select id="door-direction" class="w-full border rounded p-2 outline-none focus:border-blue-500">
+                            <option value="front">Front</option>
+                            <option value="left">Left Side</option>
+                            <option value="right">Right Side</option>
+                            <option value="back">Back</option>
+                        </select>
+                    </div>
+
+                    <!-- Exterior Compound Wall, Main Gate & Car Ramp Generator -->
+                    <div class="mt-5 pt-4 border-t border-gray-200">
+                        <div class="flex items-center justify-between mb-3">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" id="compound-wall-enable" onchange="toggleCompoundWall(this.checked)" class="form-checkbox h-4 w-4 text-emerald-600 rounded">
+                                <span class="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-dungeon text-emerald-600"></i> Enable Outer Compound Wall
+                                </span>
+                            </label>
+                            <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">3D Exterior</span>
+                        </div>
+
+                        <div id="compound-settings-container" class="hidden bg-gray-50/80 p-3.5 rounded-xl border border-gray-200 space-y-3.5 text-xs">
+                            <p class="text-[11px] text-gray-500 leading-tight">
+                                <i class="fa-solid fa-circle-info text-blue-500 mr-1"></i> Generates a perimeter masonry wall with decorative corner pillars, night lanterns, entrance gate, and driveway ramp.
+                            </p>
+
+                            <!-- Boundary Setbacks -->
+                            <div>
+                                <label class="block font-semibold text-gray-700 mb-1.5 flex items-center justify-between">
+                                    <span>Plot Setback Offsets (Feet):</span>
+                                    <span class="text-[10px] text-gray-500">Distance outside house wall</span>
+                                </label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[11px] text-gray-600 font-medium mb-0.5">Front Setback</label>
+                                        <div class="relative">
+                                            <input type="number" id="compound-setback-front" value="5" min="0" max="30" step="1" oninput="updateCompoundSettings()" class="w-full border border-gray-300 rounded px-2 py-1.5 text-xs font-semibold bg-white pr-6">
+                                            <span class="absolute right-2 top-1.5 text-gray-400 font-medium text-[10px]">ft</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] text-gray-600 font-medium mb-0.5">Back Setback</label>
+                                        <div class="relative">
+                                            <input type="number" id="compound-setback-back" value="3" min="0" max="25" step="1" oninput="updateCompoundSettings()" class="w-full border border-gray-300 rounded px-2 py-1.5 text-xs font-semibold bg-white pr-6">
+                                            <span class="absolute right-2 top-1.5 text-gray-400 font-medium text-[10px]">ft</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] text-gray-600 font-medium mb-0.5">Left Setback</label>
+                                        <div class="relative">
+                                            <input type="number" id="compound-setback-left" value="3" min="0" max="25" step="1" oninput="updateCompoundSettings()" class="w-full border border-gray-300 rounded px-2 py-1.5 text-xs font-semibold bg-white pr-6">
+                                            <span class="absolute right-2 top-1.5 text-gray-400 font-medium text-[10px]">ft</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] text-gray-600 font-medium mb-0.5">Right Setback</label>
+                                        <div class="relative">
+                                            <input type="number" id="compound-setback-right" value="3" min="0" max="25" step="1" oninput="updateCompoundSettings()" class="w-full border border-gray-300 rounded px-2 py-1.5 text-xs font-semibold bg-white pr-6">
+                                            <span class="absolute right-2 top-1.5 text-gray-400 font-medium text-[10px]">ft</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Compound Wall Height Slider -->
+                            <div>
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="font-semibold text-gray-700">Compound Wall Height:</label>
+                                    <span id="compound-height-val" class="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">5.0 ft</span>
+                                </div>
+                                <input type="range" id="compound-wall-height" min="4" max="7" step="0.5" value="5" oninput="updateCompoundSettings()" class="w-full accent-emerald-600 cursor-pointer">
+                                <div class="flex justify-between text-[10px] text-gray-400 font-mono mt-0.5">
+                                    <span>4 ft (Low)</span>
+                                    <span>5 ft (Standard)</span>
+                                    <span>6 ft</span>
+                                    <span>7 ft (High Privacy)</span>
+                                </div>
+                            </div>
+
+                            <!-- Gate Style & Car Ramp -->
+                            <div class="pt-2 border-t border-gray-200 space-y-2.5">
+                                <div>
+                                    <label class="block font-semibold text-gray-700 mb-1">Main Gate Architectural Style</label>
+                                    <select id="compound-gate-style" onchange="updateCompoundSettings()" class="w-full border border-gray-300 rounded p-1.5 bg-white text-xs font-medium outline-none focus:border-emerald-500">
+                                        <option value="sliding" selected>Sliding Modern Iron Gate</option>
+                                        <option value="double_leaf">Double Leaf Royal Gate</option>
+                                        <option value="open">Open Entry (Pillars Only)</option>
+                                    </select>
+                                </div>
+
+                                <label class="flex items-center space-x-2 cursor-pointer bg-white p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
+                                    <input type="checkbox" id="compound-ramp-enable" checked onchange="updateCompoundSettings()" class="form-checkbox h-4 w-4 text-emerald-600 rounded">
+                                    <span class="font-semibold text-gray-800 text-xs flex items-center gap-1.5">
+                                        <i class="fa-solid fa-car-side text-blue-600"></i> Add Car Parking Ramp (Slope to Road)
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Partition Design & AI -->
+                <div id="step-3" class="step-content">
+                    <h2 class="text-lg font-semibold mb-3 text-gray-700 border-b pb-2">3. Design & Vastu</h2>
+                    
+                    <div class="mb-4">
+                        <label class="flex items-center space-x-2 bg-purple-50 p-2 rounded border border-purple-200 cursor-pointer hover:bg-purple-100 mb-2 shadow-sm transition">
+                            <input type="checkbox" id="vastu-toggle" onchange="toggleVastu()" class="form-checkbox h-5 w-5 text-purple-600">
+                            <span class="text-sm font-bold text-purple-800"><i class="fa-solid fa-om mr-1"></i> Turn On Vastu Grid (9 Zones)</span>
+                        </label>
+                        
+                        <div class="bg-gray-50 border rounded p-2 shadow-inner">
+                            <h3 class="text-xs font-bold text-gray-600 mb-1 uppercase tracking-wider">Live Vastu Score:</h3>
+                            <ul id="vastu-list" class="text-xs max-h-24 overflow-y-auto space-y-1">
+                                <li class="text-gray-500 italic">Place rooms or use AI to see scores.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 bg-indigo-50 p-3 rounded-lg border border-indigo-200 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 right-0 bg-indigo-500 text-white text-[10px] px-2 py-0.5 rounded-bl-lg font-bold">PRO</div>
+                        <h3 class="text-sm font-bold text-indigo-800 mb-2"><i class="fa-solid fa-wand-magic-sparkles"></i> Procedural AI Designer</h3>
+                        
+                        <select id="ai-layout-type" class="w-full border border-indigo-300 p-2 rounded text-sm outline-none focus:border-indigo-600 mb-2 bg-white text-indigo-900 font-medium">
+                            <option value="auto">Smart Auto-Fit (Randomized)</option>
+                            <option value="1bhk">1 BHK Modern (Standard Sizes)</option>
+                            <option value="2bhk_vastu">2 BHK Vastu Perfect</option>
+                            <option value="3bhk">3 BHK Premium (Large Plots)</option>
+                        </select>
+
+                        <button onclick="generateAILayout()" class="w-full py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition text-sm font-bold shadow-md flex justify-center items-center">
+                            <i class="fa-solid fa-shuffle mr-2"></i> Generate AI Layout
+                        </button>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="flex bg-gray-100 p-1 rounded-md mb-2 gap-1">
+                            <button onclick="setDrawMode('wall')" id="mode-wall" class="flex-1 py-1 bg-white shadow-sm rounded text-xs font-medium text-blue-600"><i class="fa-solid fa-bars-progress mr-1"></i> Walls</button>
+                            <button onclick="setDrawMode('balcony_wall')" id="mode-balcony_wall" class="flex-1 py-1 text-xs font-medium text-gray-600 hover:text-sky-600" title="3-Foot Terrace / Balcony Wall"><i class="fa-solid fa-border-top-left mr-1"></i> Balcony (3ft)</button>
+                            <button onclick="setDrawMode('door')" id="mode-door" class="flex-1 py-1 text-xs font-medium text-gray-600 hover:text-blue-600"><i class="fa-solid fa-door-open mr-1"></i> Doors</button>
+                            <button onclick="setDrawMode('window')" id="mode-window" class="flex-1 py-1 text-xs font-medium text-gray-600 hover:text-blue-600"><i class="fa-solid fa-border-all mr-1"></i> Windows</button>
+                            <button onclick="setDrawMode('room')" id="mode-room" class="flex-1 py-1 text-xs font-medium text-gray-600 hover:text-blue-600"><i class="fa-solid fa-tags mr-1"></i> Rooms</button>
+                        </div>
+
+                        <!-- Balcony / Barandi Wall Height & Settings -->
+                        <div id="balcony-selector" class="hidden space-y-2 mb-3 p-3 border rounded-md bg-sky-50 border-sky-200">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="block text-xs font-semibold text-sky-900">Barandi / Balcony Wall Height:</label>
+                                <span id="balcony-height-badge" class="bg-sky-200 text-sky-800 text-[10px] font-bold px-1.5 py-0.5 rounded">3.0 ft Default</span>
+                            </div>
+                            <select id="balcony-height" onchange="document.getElementById('balcony-height-badge').innerText = this.value + ' ft'" class="w-full border p-1 rounded text-sm outline-none border-sky-300 bg-white font-medium text-sky-900">
+                                <option value="2">2.0 ft (Low Terrace Parapet)</option>
+                                <option value="2.5">2.5 ft (Standard Half Wall)</option>
+                                <option value="3" selected>3.0 ft (Standard Balcony / Barandi)</option>
+                                <option value="3.5">3.5 ft (High Balcony Rail)</option>
+                                <option value="4">4.0 ft (Full Privacy Railing)</option>
+                            </select>
+                            <p class="text-[10px] text-sky-700 leading-tight"><i class="fa-solid fa-circle-info mr-1"></i> Click & drag along terraces or room edges. Renders at designated height in 3D with stone coping cap.</p>
+                        </div>
+                        
+                        <div id="door-selector" class="hidden space-y-2 mb-3 p-3 border rounded-md bg-yellow-50 border-yellow-200">
+                            <select id="door-sub-type" class="w-full border p-1 rounded text-sm outline-none border-yellow-300">
+                                <option value="room">Room Door (Fixed 3 ft)</option>
+                                <option value="entrance">Entrance Door (4 to 5 ft)</option>
+                                <option value="channel">Channel Gate (Max 15 ft)</option>
+                            </select>
+                        </div>
+
+                        <div id="room-selector" class="hidden space-y-2 mb-3 p-3 border rounded-md bg-orange-50 border-orange-200">
+                            <select id="room-type" class="w-full border p-1 rounded text-sm outline-none">
+                                <option value="Entrance">Entrance</option>
+                                <option value="Open Space">Open Space</option>
+                                <option value="Living Room">Living Room</option>
+                                <option value="Kitchen">Kitchen</option>
+                                <option value="Master Bedroom">Master Bedroom</option>
+                                <option value="Bedroom">Bedroom</option>
+                                <option value="Bathroom">Bathroom</option>
+                                <option value="Pooja Room">Pooja Room</option>
+                                <option value="Stairs">Stairs Area</option>
+                                <option value="Ventilation">Ventilation / OTS</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Assets System (Slabs & Stairs) -->
+                <div id="step-4" class="step-content">
+                    <h2 class="text-lg font-semibold mb-3 text-gray-700 border-b pb-2">4. Structural Assets</h2>
+                    
+                    <p class="text-xs text-gray-500 mb-4">Draw structural 3D components.</p>
+
+                    <div class="grid grid-cols-3 gap-1.5 mb-4">
+                        <button onclick="setDrawMode('asset_slab')" id="mode-asset_slab" class="py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-xs font-medium transition flex flex-col items-center justify-center">
+                            <i class="fa-solid fa-kitchen-set text-lg mb-1 text-slate-700"></i>
+                            Kitchen Slab
+                        </button>
+                        <button onclick="setDrawMode('asset_stair')" id="mode-asset_stair" class="py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-xs font-medium transition flex flex-col items-center justify-center">
+                            <i class="fa-solid fa-stairs text-lg mb-1 text-amber-700"></i>
+                            Stairs
+                        </button>
+                        <button onclick="setDrawMode('asset_pillar')" id="mode-asset_pillar" class="py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-xs font-medium transition flex flex-col items-center justify-center text-slate-800">
+                            <i class="fa-solid fa-monument text-lg mb-1 text-indigo-700"></i>
+                            Pillar / Column
+                        </button>
+                    </div>
+
+                    <!-- Advanced Architectural Staircase System -->
+                    <div id="stair-selector" class="hidden space-y-3 mb-3 p-3.5 border rounded-xl bg-amber-50/70 border-amber-200 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-stairs text-amber-600"></i> Architectural Staircase
+                            </span>
+                            <span class="text-[10px] bg-amber-200/80 text-amber-900 font-bold px-2 py-0.5 rounded-full">11 ft Height</span>
+                        </div>
+                        <p class="text-[11px] text-gray-600 leading-tight">Pre-designed multi-floor layouts with 19–21 steps for standard 11 ft floor-to-floor height.</p>
+
+                        <!-- Pre-designed Layout Options -->
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-700 mb-1.5">Layout Type:</label>
+                            <div class="grid grid-cols-3 gap-1.5" id="stair-layout-selector">
+                                <button type="button" onclick="selectStairLayout('u_shape')" id="stair-layout-u_shape" class="stair-layout-btn py-2 px-1 text-center rounded-lg border-2 border-amber-500 bg-white text-amber-900 shadow-xs text-xs font-bold transition flex flex-col items-center gap-1 cursor-pointer">
+                                    <i class="fa-solid fa-arrow-turn-up text-amber-600 text-sm"></i>
+                                    <span>U-Shape</span>
+                                    <span class="text-[9px] text-gray-500 font-normal">Dog-legged</span>
+                                </button>
+                                <button type="button" onclick="selectStairLayout('l_shape')" id="stair-layout-l_shape" class="stair-layout-btn py-2 px-1 text-center rounded-lg border border-gray-200 bg-white/70 text-gray-600 hover:bg-white shadow-xs text-xs font-medium transition flex flex-col items-center gap-1 cursor-pointer">
+                                    <i class="fa-solid fa-turn-up text-gray-500 text-sm"></i>
+                                    <span>L-Shape</span>
+                                    <span class="text-[9px] text-gray-500 font-normal">Quarter Turn</span>
+                                </button>
+                                <button type="button" onclick="selectStairLayout('straight')" id="stair-layout-straight" class="stair-layout-btn py-2 px-1 text-center rounded-lg border border-gray-200 bg-white/70 text-gray-600 hover:bg-white shadow-xs text-xs font-medium transition flex flex-col items-center gap-1 cursor-pointer">
+                                    <i class="fa-solid fa-arrow-up-long text-gray-500 text-sm"></i>
+                                    <span>Straight</span>
+                                    <span class="text-[9px] text-gray-500 font-normal">Box Flight</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Step Count Selector (19-21 Steps for 11 ft height) -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-[11px] font-bold text-gray-700">Steps (11 ft Rise):</label>
+                                <span id="stair-calc-badge" class="text-[10px] text-amber-800 font-semibold bg-amber-100 px-1.5 py-0.5 rounded">Riser: 6.6" | Tread: 10.5"</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-1">
+                                <button type="button" onclick="setStairSteps(19)" id="stair-step-19" class="stair-step-btn py-1 px-1 text-center rounded border border-gray-200 bg-white text-xs text-gray-700 font-medium hover:bg-amber-50 cursor-pointer">19 Steps</button>
+                                <button type="button" onclick="setStairSteps(20)" id="stair-step-20" class="stair-step-btn py-1 px-1 text-center rounded border-2 border-amber-600 bg-amber-100 text-xs text-amber-900 font-bold cursor-pointer">20 Steps (Ideal)</button>
+                                <button type="button" onclick="setStairSteps(21)" id="stair-step-21" class="stair-step-btn py-1 px-1 text-center rounded border border-gray-200 bg-white text-xs text-gray-700 font-medium hover:bg-amber-50 cursor-pointer">21 Steps</button>
+                            </div>
+                        </div>
+
+                        <!-- Flight Width & Dimensions -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-gray-600 mb-1">Flight Width:</label>
+                                <select id="stair-flight-width" onchange="changeStairFlightWidth(this.value)" class="w-full border border-gray-300 rounded px-2 py-1 text-xs outline-none focus:border-amber-500 bg-white">
+                                    <option value="3.0">3.0 ft (Standard)</option>
+                                    <option value="3.5">3.5 ft (Comfort)</option>
+                                    <option value="4.0">4.0 ft (Spacious)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-gray-600 mb-1">Total Height:</label>
+                                <div class="px-2 py-1 text-xs font-bold text-amber-900 bg-amber-100/80 rounded border border-amber-200 text-center">
+                                    11' 0" (132")
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Automatic Ceiling/Roof Cutout (Void) Toggle -->
+                        <div class="pt-2 border-t border-amber-200/60">
+                            <label class="flex items-center justify-between p-2 bg-white rounded-lg border border-amber-200 cursor-pointer hover:bg-amber-50 transition">
+                                <div class="flex items-center gap-2">
+                                    <i class="fa-solid fa-scissors text-amber-700 text-xs"></i>
+                                    <div>
+                                        <div class="text-xs font-bold text-gray-800">Auto Ceiling / Roof Cutout</div>
+                                        <div class="text-[10px] text-gray-500">Subtracts void opening in upper slab</div>
+                                    </div>
+                                </div>
+                                <input type="checkbox" id="stair-auto-cutout" checked onchange="toggleStairAutoCutout(this.checked)" class="form-checkbox h-4 w-4 text-amber-600 rounded">
+                            </label>
+                        </div>
+
+                        <!-- Quick Rotate & Flip Controls -->
+                        <div class="flex items-center gap-2 pt-1">
+                            <button type="button" onclick="rotateCurrentStair(90)" class="flex-1 py-1.5 px-2 bg-white hover:bg-amber-100 text-amber-900 rounded-lg border border-amber-200 text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer">
+                                <i class="fa-solid fa-rotate-right text-amber-600"></i> Rotate 90°
+                            </button>
+                            <button type="button" onclick="flipCurrentStair()" class="flex-1 py-1.5 px-2 bg-white hover:bg-amber-100 text-amber-900 rounded-lg border border-amber-200 text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer">
+                                <i class="fa-solid fa-arrows-left-right text-amber-600"></i> Flip Up/Down
+                            </button>
+                        </div>
+
+                        <p class="text-[10px] text-gray-500 italic text-center">
+                            <i class="fa-solid fa-hand-pointer mr-1 text-amber-600"></i> Click blueprint to place. Drag & drop to reposition smoothly.
+                        </p>
+                    </div>
+                    
+                    <div id="slab-selector" class="hidden space-y-2 mb-3 p-3 border rounded-md bg-slate-50 border-slate-200">
+                        <p class="text-xs text-slate-700"><i class="fa-solid fa-circle-info"></i> Draw along a kitchen wall. It automatically renders at <b>3 feet height</b>.</p>
+                    </div>
+
+                    <!-- Structural Pillar / Column Tool Selector -->
+                    <div id="pillar-selector" class="hidden space-y-3 mb-3 p-3.5 border rounded-xl bg-indigo-50/70 border-indigo-200 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-monument text-indigo-600"></i> Structural Pillar
+                            </span>
+                            <span class="text-[10px] bg-indigo-200/80 text-indigo-900 font-bold px-2 py-0.5 rounded-full">11 ft Height</span>
+                        </div>
+                        <p class="text-[11px] text-gray-600 leading-tight">Place load-bearing columns. Snaps to wall corners, wall lines, and 1-ft grid.</p>
+
+                        <!-- Pillar Shape: Quad vs Circle -->
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-700 mb-1.5">Pillar Shape:</label>
+                            <div class="grid grid-cols-2 gap-2" id="pillar-shape-selector">
+                                <button type="button" onclick="selectPillarShape('quad')" id="pillar-shape-quad" class="pillar-shape-btn py-2 px-1 text-center rounded-lg border-2 border-indigo-600 bg-white text-indigo-900 shadow-xs text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i class="fa-regular fa-square text-indigo-600"></i>
+                                    <span>Quad / Rect</span>
+                                </button>
+                                <button type="button" onclick="selectPillarShape('circle')" id="pillar-shape-circle" class="pillar-shape-btn py-2 px-1 text-center rounded-lg border border-gray-200 bg-white/70 text-gray-600 hover:bg-white shadow-xs text-xs font-medium transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i class="fa-regular fa-circle text-gray-500"></i>
+                                    <span>Circular</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Quad Dimensions & Orientation -->
+                        <div id="pillar-quad-controls" class="space-y-2">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-gray-600 mb-1">Dimensions:</label>
+                                    <select id="pillar-quad-size" onchange="changePillarDimensions(this.value)" class="w-full border border-gray-300 rounded px-2 py-1 text-xs outline-none focus:border-indigo-500 bg-white font-medium">
+                                        <option value="1x2" selected>1 ft × 2 ft (Standard)</option>
+                                        <option value="1x1.5">1 ft × 1.5 ft (Compact)</option>
+                                        <option value="1x1">1 ft × 1 ft (Square)</option>
+                                        <option value="1.5x1.5">1.5 ft × 1.5 ft (Heavy)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-gray-600 mb-1">Orientation:</label>
+                                    <button type="button" onclick="rotateCurrentPillar(90)" class="w-full py-1 px-2 bg-white hover:bg-indigo-100 text-indigo-900 rounded border border-indigo-300 text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer">
+                                        <i class="fa-solid fa-rotate-right text-indigo-600"></i> Toggle (<kbd class="font-sans px-1 bg-gray-100 rounded border text-[10px]">R</kbd>)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Circle Diameter -->
+                        <div id="pillar-circle-controls" class="hidden space-y-2">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-gray-600 mb-1">Diameter:</label>
+                                <div class="grid grid-cols-3 gap-1">
+                                    <button type="button" onclick="changePillarDiameter(1.0)" id="pillar-dia-1_0" class="pillar-dia-btn py-1 px-1 text-center rounded border border-gray-200 bg-white text-xs text-gray-700 font-medium hover:bg-indigo-50 cursor-pointer">1.0 ft</button>
+                                    <button type="button" onclick="changePillarDiameter(1.5)" id="pillar-dia-1_5" class="pillar-dia-btn py-1 px-1 text-center rounded border-2 border-indigo-600 bg-indigo-100 text-xs text-indigo-900 font-bold cursor-pointer">1.5 ft (Std)</button>
+                                    <button type="button" onclick="changePillarDiameter(2.0)" id="pillar-dia-2_0" class="pillar-dia-btn py-1 px-1 text-center rounded border border-gray-200 bg-white text-xs text-gray-700 font-medium hover:bg-indigo-50 cursor-pointer">2.0 ft</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p class="text-[10px] text-gray-500 italic text-center">
+                            <i class="fa-solid fa-hand-pointer mr-1 text-indigo-600"></i> Single-click blueprint to place. Press <kbd class="font-sans px-1 bg-white rounded border">R</kbd> to rotate.
+                        </p>
+                    </div>
+
+                    <!-- Exterior Chajja / Overhang Generator -->
+                    <div class="mt-4 pt-3 border-t border-gray-200">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-umbrella text-blue-600"></i> Exterior Chajja / Overhang
+                            </label>
+                            <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">Canopy</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-3">Add concrete cantilever overhangs / chajjas to building outer walls on this floor.</p>
+
+                        <!-- Side Selector -->
+                        <div class="mb-3">
+                            <label class="block text-[11px] font-semibold text-gray-600 mb-1">Target Wall Side:</label>
+                            <div class="grid grid-cols-4 gap-1">
+                                <button type="button" onclick="selectChajjaSide('front')" id="chajja-side-front" class="chajja-side-btn py-1.5 px-1 text-xs font-bold rounded border border-blue-600 bg-blue-50 text-blue-700 text-center transition cursor-pointer">Front</button>
+                                <button type="button" onclick="selectChajjaSide('back')" id="chajja-side-back" class="chajja-side-btn py-1.5 px-1 text-xs font-medium rounded border border-gray-200 bg-white text-gray-600 text-center transition hover:bg-gray-50 cursor-pointer">Back</button>
+                                <button type="button" onclick="selectChajjaSide('left')" id="chajja-side-left" class="chajja-side-btn py-1.5 px-1 text-xs font-medium rounded border border-gray-200 bg-white text-gray-600 text-center transition hover:bg-gray-50 cursor-pointer">Left</button>
+                                <button type="button" onclick="selectChajjaSide('right')" id="chajja-side-right" class="chajja-side-btn py-1.5 px-1 text-xs font-medium rounded border border-gray-200 bg-white text-gray-600 text-center transition hover:bg-gray-50 cursor-pointer">Right</button>
+                            </div>
+                        </div>
+
+                        <!-- Depth & Level -->
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-gray-600 mb-1">Extension (Ft):</label>
+                                <div class="relative">
+                                    <input type="number" id="chajja-depth" value="3" min="1" max="10" step="0.5" class="w-full border border-gray-300 rounded px-2 py-1 text-xs outline-none focus:border-blue-500">
+                                    <span class="absolute right-2 top-1 text-[11px] text-gray-400">ft</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-gray-600 mb-1">Height Level:</label>
+                                <select id="chajja-level" class="w-full border border-gray-300 rounded px-2 py-1 text-xs outline-none focus:border-blue-500 bg-white">
+                                    <option value="roof">Roof / Slab Level (10 ft)</option>
+                                    <option value="lintel">Lintel Level (7 ft)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Add Button -->
+                        <button type="button" onclick="addCurrentChajja()" class="w-full py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-xs font-bold shadow transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-plus"></i> Add Chajja to Active Floor
+                        </button>
+
+                        <!-- Live Chajjas on Current Floor -->
+                        <div class="mt-3">
+                            <label class="block text-[11px] font-semibold text-gray-600 mb-1">Current Floor Overhangs:</label>
+                            <div id="chajjas-list-container" class="space-y-1.5">
+                                <!-- Rendered via JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MEP Layer Quick Access Card in Step 4 -->
+                    <div class="bg-gradient-to-br from-teal-50 to-emerald-50 border border-teal-200 rounded-xl p-3 mb-3 shadow-xs">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-bold text-teal-900 flex items-center gap-1.5">
+                                <i class="fa-solid fa-bolt-lightning text-teal-600"></i> MEP Services & Rough-ins
+                            </span>
+                            <span class="text-[10px] bg-teal-200 text-teal-800 font-bold px-2 py-0.5 rounded-full">Layout</span>
+                        </div>
+                        <p class="text-[11px] text-teal-700 mb-2">Electrical fixtures, switchboards, conduits, plumbing pipes, sanitary ware & water tanks.</p>
+                        <button type="button" onclick="toggleMepLayer()" class="w-full py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-layer-group"></i> Toggle MEP Layer & Palette
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 5: Furniture Assets & Materials Studio -->
+                <div id="step-5" class="step-content">
+                    <h2 class="text-lg font-semibold mb-3 text-gray-700 border-b pb-2">5. Furniture, Decor & MEP</h2>
+
+                    <!-- Sub-tabs: Furniture vs Materials & Paint vs MEP Layer -->
+                    <div class="flex border-b border-gray-200 mb-3 bg-gray-100 p-1 rounded-xl gap-1">
+                        <button type="button" onclick="switchStep5Tab('furniture')" id="step5-tab-furn" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-white text-blue-700 shadow-xs transition cursor-pointer flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-couch"></i> Furniture
+                        </button>
+                        <button type="button" onclick="switchStep5Tab('materials')" id="step5-tab-mat" class="flex-1 py-1.5 text-xs font-bold rounded-lg text-gray-500 hover:text-gray-700 transition cursor-pointer flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-palette text-amber-500"></i> Materials
+                        </button>
+                        <button type="button" onclick="switchStep5Tab('mep')" id="step5-tab-mep" class="flex-1 py-1.5 text-xs font-bold rounded-lg text-gray-500 hover:text-gray-700 transition cursor-pointer flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-bolt-lightning text-teal-600"></i> MEP
+                        </button>
+                    </div>
+
+                    <!-- Panel A: Furniture Drawing -->
+                    <div id="step5-furniture-panel">
+                        <p class="text-xs text-gray-500 mb-3"><i class="fa-solid fa-circle-info"></i> <b>How to draw:</b> Click and drag along a wall. Furniture will extrude forward.</p>
+
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            <button onclick="setDrawMode('furn_bed')" id="mode-furn_bed" class="py-2 bg-gray-100 hover:bg-gray-200 border-2 border-transparent rounded-md text-sm font-medium transition flex flex-col items-center justify-center text-blue-700">
+                                <i class="fa-solid fa-bed text-lg mb-1"></i> Bed
+                            </button>
+                            <button onclick="setDrawMode('furn_almira')" id="mode-furn_almira" class="py-2 bg-gray-100 hover:bg-gray-200 border-2 border-transparent rounded-md text-sm font-medium transition flex flex-col items-center justify-center text-yellow-800">
+                                <i class="fa-solid fa-box-open text-lg mb-1"></i> Almira
+                            </button>
+                            <button onclick="setDrawMode('furn_sofa')" id="mode-furn_sofa" class="py-2 bg-gray-100 hover:bg-gray-200 border-2 border-transparent rounded-md text-sm font-medium transition flex flex-col items-center justify-center text-pink-700">
+                                <i class="fa-solid fa-couch text-lg mb-1"></i> Sofa
+                            </button>
+                            <button onclick="setDrawMode('furn_dining')" id="mode-furn_dining" class="py-2 bg-gray-100 hover:bg-gray-200 border-2 border-transparent rounded-md text-sm font-medium transition flex flex-col items-center justify-center text-green-700">
+                                <i class="fa-solid fa-utensils text-lg mb-1"></i> Dining
+                            </button>
+                        </div>
+
+                        <div id="furn-bed-selector" class="hidden mb-3 p-3 border rounded-md bg-blue-50 border-blue-200">
+                            <select id="bed-type" class="w-full border p-1 rounded text-sm outline-none border-blue-300">
+                                <option value="double">Double Bed (6x6 ft)</option>
+                                <option value="single">Single Bed (3x6 ft)</option>
+                            </select>
+                        </div>
+                        
+                        <div id="furn-almira-selector" class="hidden mb-3 p-3 border rounded-md bg-yellow-50 border-yellow-200">
+                            <select id="almira-type" class="w-full border p-1 rounded text-sm outline-none border-yellow-300">
+                                <option value="full">Full Almira w/ Loft (11 ft)</option>
+                                <option value="normal">Normal Almira (8 ft)</option>
+                            </select>
+                            <p class="text-[10px] text-yellow-700 mt-1">Editable length. Fixed 2ft depth.</p>
+                        </div>
+                    </div>
+
+                    <!-- Panel B: Custom Wall Paint, Texture & Flooring Material Studio -->
+                    <div id="step5-materials-panel" class="hidden">
+                        <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-3 shadow-xs">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i> Material Studio
+                                </span>
+                                <span class="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-full">2D & 3D Paint</span>
+                            </div>
+                            <p class="text-[11px] text-gray-500 mb-2">Select a swatch below, then click any wall or floor in 2D blueprint or 3D view to paint it.</p>
+
+                            <!-- Wall Finishes -->
+                            <div class="mb-3">
+                                <div class="text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                                    <i class="fa-solid fa-brush text-blue-600 text-xs"></i> Wall Finishes
+                                </div>
+                                <div class="grid grid-cols-2 gap-1.5">
+                                    <button type="button" onclick="selectMaterialSwatch('wall_warm_ivory')" data-mat-id="wall_warm_ivory" class="mat-swatch-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded-md shadow-inner shrink-0" style="background-color: #fdfbf7; border: 1px solid #d1d5db;"></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Warm Ivory</div>
+                                            <div class="text-[9px] text-gray-400">Paint • Matte</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="selectMaterialSwatch('wall_royal_blue')" data-mat-id="wall_royal_blue" class="mat-swatch-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded-md shadow-inner shrink-0" style="background-color: #1e3a8a;"></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Royal Blue</div>
+                                            <div class="text-[9px] text-gray-400">Paint • Accent</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="selectMaterialSwatch('wall_terracotta')" data-mat-id="wall_terracotta" class="mat-swatch-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded-md shadow-inner shrink-0" style="background-color: #c2410c;"></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Terracotta</div>
+                                            <div class="text-[9px] text-gray-400">Paint • Warm</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="selectMaterialSwatch('wall_sage_green')" data-mat-id="wall_sage_green" class="mat-swatch-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded-md shadow-inner shrink-0" style="background-color: #4d7c0f;"></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Sage Green</div>
+                                            <div class="text-[9px] text-gray-400">Paint • Calm</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="selectMaterialSwatch('wall_charcoal_slate')" data-mat-id="wall_charcoal_slate" class="mat-swatch-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded-md shadow-inner shrink-0" style="background-color: #334155;"></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Charcoal Slate</div>
+                                            <div class="text-[9px] text-gray-400">Paint • Slate</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="selectMaterialSwatch('wall_red_brick')" data-mat-id="wall_red_brick" class="mat-swatch-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded-md shadow-inner shrink-0" style="background: repeating-linear-gradient(45deg, #b91c1c, #b91c1c 3px, #991b1b 3px, #991b1b 6px);"></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Red Brick</div>
+                                            <div class="text-[9px] text-amber-700 font-semibold">Texture</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="selectMaterialSwatch('wall_stone_cladding')" data-mat-id="wall_stone_cladding" class="mat-swatch-btn col-span-2 p-1.5 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded-md shadow-inner shrink-0" style="background: repeating-linear-gradient(45deg, #78716c, #78716c 4px, #57534e 4px, #57534e 8px);"></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Stone Cladding Texture</div>
+                                            <div class="text-[9px] text-stone-600 font-semibold">Stacked Ashlar Blocks</div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Flooring Finishes -->
+                            <div class="mb-3 border-t pt-2.5">
+                                <div class="text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                                    <i class="fa-solid fa-layer-group text-amber-600 text-xs"></i> Flooring Finishes
+                                </div>
+                                <div class="grid grid-cols-2 gap-1.5">
+                                    <button type="button" onclick="selectMaterialSwatch('floor_italian_marble')" data-mat-id="floor_italian_marble" class="mat-swatch-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded-md shadow-inner shrink-0" style="background: linear-gradient(135deg, #ffffff 60%, #cbd5e1 100%); border: 1px solid #cbd5e1;"></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Italian Marble</div>
+                                            <div class="text-[9px] text-gray-400">Gloss • Veins</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="selectMaterialSwatch('floor_wooden_parquet')" data-mat-id="floor_wooden_parquet" class="mat-swatch-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded-md shadow-inner shrink-0" style="background: repeating-linear-gradient(90deg, #b45309, #b45309 3px, #92400e 3px, #92400e 6px);"></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Warm Parquet</div>
+                                            <div class="text-[9px] text-amber-700 font-semibold">Oak Planks</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="selectMaterialSwatch('floor_terracotta_tiles')" data-mat-id="floor_terracotta_tiles" class="mat-swatch-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded-md shadow-inner shrink-0" style="background: radial-gradient(circle, #ea580c 40%, #c2410c 100%);"></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Terracotta Tiles</div>
+                                            <div class="text-[9px] text-gray-400">Square • Matte</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="selectMaterialSwatch('floor_vitrified_tiles')" data-mat-id="floor_vitrified_tiles" class="mat-swatch-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded-md shadow-inner shrink-0" style="background: linear-gradient(135deg, #f8fafc 0%, #ffffff 50%, #e2e8f0 100%); border: 1px solid #e2e8f0;"></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Vitrified Tiles</div>
+                                            <div class="text-[9px] text-gray-400">Mirror Gloss</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="selectMaterialSwatch('floor_bathroom_tiles')" data-mat-id="floor_bathroom_tiles" class="mat-swatch-btn col-span-2 p-1.5 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded-md shadow-inner shrink-0" style="background: radial-gradient(#64748b 25%, #334155 25%); background-size: 6px 6px;"></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Anti-Skid Bathroom Tiles</div>
+                                            <div class="text-[9px] text-slate-500 font-semibold">Non-Slip Grip Pattern</div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Batch Actions -->
+                            <div class="border-t pt-2 space-y-1.5">
+                                <div class="grid grid-cols-2 gap-1.5">
+                                    <button type="button" onclick="applyMaterialToAllWalls()" class="py-1 px-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-[11px] rounded-lg transition border border-blue-200 flex items-center justify-center gap-1 cursor-pointer">
+                                        <i class="fa-solid fa-fill-drip"></i> All Walls
+                                    </button>
+                                    <button type="button" onclick="applyMaterialToFloor()" class="py-1 px-2 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[11px] rounded-lg transition border border-amber-200 flex items-center justify-center gap-1 cursor-pointer">
+                                        <i class="fa-solid fa-border-all"></i> Entire Floor
+                                    </button>
+                                </div>
+                                <button type="button" onclick="resetMaterialsToDefault()" class="w-full py-1 px-2 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-[11px] rounded-lg transition flex items-center justify-center gap-1 cursor-pointer">
+                                    <i class="fa-solid fa-rotate-left"></i> Reset Finishes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel C: MEP Layer (Electrical & Plumbing Layout) -->
+                    <div id="step5-mep-panel" class="hidden">
+                        <div class="bg-gray-50 border border-teal-200 rounded-xl p-3 mb-3 shadow-xs">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="text-xs font-bold text-teal-900 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-bolt-lightning text-teal-600"></i> MEP Services Studio
+                                </span>
+                                <span class="text-[10px] text-teal-700 font-bold bg-teal-100 px-2 py-0.5 rounded-full">2D & 3D</span>
+                            </div>
+                            <p class="text-[11px] text-gray-500 mb-2">Select any electrical or plumbing fixture below, then click on the blueprint to place it. Press <kbd class="bg-white border px-1 rounded text-[10px]">R</kbd> to rotate.</p>
+
+                            <!-- Electrical Assets -->
+                            <div class="mb-3">
+                                <div class="text-[11px] font-bold text-amber-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                                    <i class="fa-solid fa-plug text-amber-500"></i> Electrical Fixtures
+                                </div>
+                                <div class="grid grid-cols-2 gap-1.5">
+                                    <button type="button" onclick="setDrawMode('mep_ceiling_fan')" id="panel-mep_ceiling_fan" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-amber-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded bg-sky-50 text-sky-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-fan"></i></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Ceiling Fan</div>
+                                            <div class="text-[9px] text-gray-400">3 Blades • Ceiling</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="setDrawMode('mep_wall_ac')" id="panel-mep_wall_ac" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-amber-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-snowflake"></i></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Wall AC Unit</div>
+                                            <div class="text-[9px] text-gray-400">Split • Wall</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="setDrawMode('mep_switchboard')" id="panel-mep_switchboard" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-amber-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded bg-yellow-50 text-yellow-700 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-toggle-on"></i></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Switchboard</div>
+                                            <div class="text-[9px] text-gray-400">Modular • 4ft H</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="setDrawMode('mep_light_ceiling')" id="panel-mep_light_ceiling" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-amber-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded bg-amber-50 text-amber-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-lightbulb"></i></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Ceiling Light</div>
+                                            <div class="text-[9px] text-gray-400">Pendant / Orb</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="setDrawMode('mep_mcb_box')" id="panel-mep_mcb_box" class="mep-tool-btn col-span-2 p-1.5 rounded-lg border border-gray-200 bg-white hover:border-amber-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded bg-orange-50 text-orange-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-bolt"></i></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Distribution Box (MCB / DB)</div>
+                                            <div class="text-[9px] text-gray-400">Main Electrical Panel • Eye Level</div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Plumbing & Sanitary Assets -->
+                            <div class="mb-3 border-t pt-2.5">
+                                <div class="text-[11px] font-bold text-teal-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                                    <i class="fa-solid fa-faucet-drip text-teal-600"></i> Plumbing & Sanitary
+                                </div>
+                                <div class="grid grid-cols-2 gap-1.5">
+                                    <button type="button" onclick="setDrawMode('mep_wc')" id="panel-mep_wc" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-teal-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded bg-cyan-50 text-cyan-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-toilet"></i></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Toilet (WC)</div>
+                                            <div class="text-[9px] text-gray-400">Western • Ceramic</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="setDrawMode('mep_wash_basin')" id="panel-mep_wash_basin" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-teal-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded bg-sky-50 text-sky-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-sink"></i></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Wash Basin</div>
+                                            <div class="text-[9px] text-gray-400">Sink + Tap • 2.8ft</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="setDrawMode('mep_shower')" id="panel-mep_shower" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-teal-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-shower"></i></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Shower Head</div>
+                                            <div class="text-[9px] text-gray-400">Rain Rose • 7ft H</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="setDrawMode('mep_drain_trap')" id="panel-mep_drain_trap" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-teal-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded bg-slate-50 text-slate-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-filter"></i></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Drain Trap</div>
+                                            <div class="text-[9px] text-gray-400">Floor Grate • Waste</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="setDrawMode('mep_kitchen_sink')" id="panel-mep_kitchen_sink" class="mep-tool-btn col-span-2 p-1.5 rounded-lg border border-gray-200 bg-white hover:border-teal-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-faucet-drip"></i></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Kitchen Sink</div>
+                                            <div class="text-[9px] text-gray-400">Double Bowl • Stainless Steel</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="setDrawMode('mep_overhead_tank')" id="panel-mep_overhead_tank" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-teal-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded bg-indigo-50 text-indigo-700 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-database"></i></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Overhead Tank</div>
+                                            <div class="text-[9px] text-gray-400">1000L • Top Roof</div>
+                                        </div>
+                                    </button>
+                                    <button type="button" onclick="setDrawMode('mep_septic_tank')" id="panel-mep_septic_tank" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-teal-400 transition flex items-center gap-2 text-left cursor-pointer">
+                                        <div class="w-6 h-6 rounded bg-stone-50 text-stone-700 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-boxes-stacked"></i></div>
+                                        <div class="truncate leading-tight">
+                                            <div class="text-[11px] font-bold text-gray-800 truncate">Septic Tank</div>
+                                            <div class="text-[9px] text-gray-400">UGT • Underground</div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Footer Actions -->
+                            <div class="pt-2 border-t flex items-center justify-between text-[11px]">
+                                <button type="button" onclick="toggleMepLayer()" class="text-teal-700 hover:text-teal-900 font-bold flex items-center gap-1 cursor-pointer">
+                                    <i class="fa-solid fa-eye"></i> Toggle Blueprint Layer
+                                </button>
+                                <button type="button" onclick="clearMepAssetsOnFloor()" class="text-red-500 hover:text-red-700 font-bold hover:underline cursor-pointer">
+                                    Clear Floor MEP
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-2 mt-4 border-t pt-4">
+                        <label class="flex items-center space-x-2 bg-teal-50 p-2 rounded border border-teal-200 cursor-pointer">
+                            <input type="checkbox" id="dimensions-toggle" onchange="toggleDimensions()" checked class="form-checkbox h-4 w-4 text-teal-600">
+                            <span class="text-sm font-semibold text-teal-800">Show Dimensions</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Step 6: 3D Render & Walkthrough -->
+                <div id="step-6" class="step-content">
+                    <h2 class="text-lg font-semibold mb-4 text-gray-700 border-b pb-2">6. 3D Model & Walkthrough</h2>
+                    <div class="bg-green-50 text-green-800 p-3 rounded-md text-sm mb-3 border border-green-200 shadow-inner">
+                        <i class="fa-solid fa-cube mr-1 text-green-600"></i> Model generated! Switch to <b>First-Person Walkthrough</b> mode to explore inside your home.
+                    </div>
+
+                    <!-- Material Studio in Step 6 (Quick 3D Paint Access) -->
+                    <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-xs mb-3 space-y-2">
+                        <div class="flex items-center justify-between border-b pb-1.5">
+                            <h3 class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                                <i class="fa-solid fa-palette text-amber-500"></i> Paint & Material Studio
+                            </h3>
+                            <span class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">Live 3D</span>
+                        </div>
+                        <p class="text-[11px] text-gray-500">Click a swatch to arm your brush, then click any wall or floor in 3D to paint!</p>
+
+                        <!-- Quick Swatches Grid -->
+                        <div class="grid grid-cols-4 gap-1.5">
+                            <button type="button" onclick="selectMaterialSwatch('wall_warm_ivory')" data-mat-id="wall_warm_ivory" class="mat-swatch-btn p-1 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex flex-col items-center cursor-pointer" title="Warm Ivory Paint">
+                                <div class="w-5 h-5 rounded shadow-inner" style="background-color: #fdfbf7; border: 1px solid #d1d5db;"></div>
+                                <span class="text-[9px] text-gray-700 font-semibold truncate mt-0.5">Ivory</span>
+                            </button>
+                            <button type="button" onclick="selectMaterialSwatch('wall_royal_blue')" data-mat-id="wall_royal_blue" class="mat-swatch-btn p-1 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex flex-col items-center cursor-pointer" title="Royal Blue Paint">
+                                <div class="w-5 h-5 rounded shadow-inner" style="background-color: #1e3a8a;"></div>
+                                <span class="text-[9px] text-gray-700 font-semibold truncate mt-0.5">Royal</span>
+                            </button>
+                            <button type="button" onclick="selectMaterialSwatch('wall_terracotta')" data-mat-id="wall_terracotta" class="mat-swatch-btn p-1 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex flex-col items-center cursor-pointer" title="Terracotta Paint">
+                                <div class="w-5 h-5 rounded shadow-inner" style="background-color: #c2410c;"></div>
+                                <span class="text-[9px] text-gray-700 font-semibold truncate mt-0.5">Terra</span>
+                            </button>
+                            <button type="button" onclick="selectMaterialSwatch('wall_red_brick')" data-mat-id="wall_red_brick" class="mat-swatch-btn p-1 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex flex-col items-center cursor-pointer" title="Red Brick Texture">
+                                <div class="w-5 h-5 rounded shadow-inner" style="background: repeating-linear-gradient(45deg, #b91c1c, #b91c1c 3px, #991b1b 3px, #991b1b 6px);"></div>
+                                <span class="text-[9px] text-gray-700 font-semibold truncate mt-0.5">Brick</span>
+                            </button>
+                            <button type="button" onclick="selectMaterialSwatch('wall_stone_cladding')" data-mat-id="wall_stone_cladding" class="mat-swatch-btn p-1 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex flex-col items-center cursor-pointer" title="Stone Cladding">
+                                <div class="w-5 h-5 rounded shadow-inner" style="background: repeating-linear-gradient(45deg, #78716c, #78716c 3px, #57534e 3px, #57534e 6px);"></div>
+                                <span class="text-[9px] text-gray-700 font-semibold truncate mt-0.5">Stone</span>
+                            </button>
+                            <button type="button" onclick="selectMaterialSwatch('floor_italian_marble')" data-mat-id="floor_italian_marble" class="mat-swatch-btn p-1 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex flex-col items-center cursor-pointer" title="Italian White Marble">
+                                <div class="w-5 h-5 rounded shadow-inner" style="background: linear-gradient(135deg, #ffffff 60%, #cbd5e1 100%); border: 1px solid #cbd5e1;"></div>
+                                <span class="text-[9px] text-gray-700 font-semibold truncate mt-0.5">Marble</span>
+                            </button>
+                            <button type="button" onclick="selectMaterialSwatch('floor_wooden_parquet')" data-mat-id="floor_wooden_parquet" class="mat-swatch-btn p-1 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex flex-col items-center cursor-pointer" title="Wooden Parquet">
+                                <div class="w-5 h-5 rounded shadow-inner" style="background: repeating-linear-gradient(90deg, #b45309, #b45309 3px, #92400e 3px, #92400e 6px);"></div>
+                                <span class="text-[9px] text-gray-700 font-semibold truncate mt-0.5">Wood</span>
+                            </button>
+                            <button type="button" onclick="selectMaterialSwatch('floor_vitrified_tiles')" data-mat-id="floor_vitrified_tiles" class="mat-swatch-btn p-1 rounded-lg border border-gray-200 bg-white hover:border-blue-400 transition flex flex-col items-center cursor-pointer" title="Vitrified Tiles">
+                                <div class="w-5 h-5 rounded shadow-inner" style="background: linear-gradient(135deg, #f8fafc 0%, #ffffff 50%, #e2e8f0 100%); border: 1px solid #e2e8f0;"></div>
+                                <span class="text-[9px] text-gray-700 font-semibold truncate mt-0.5">Tiles</span>
+                            </button>
+                        </div>
+
+                        <!-- 3D Batch Buttons -->
+                        <div class="grid grid-cols-2 gap-1.5 pt-1">
+                            <button type="button" onclick="applyMaterialToAllWalls()" class="py-1 px-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-[10px] rounded-lg transition border border-blue-200 flex items-center justify-center gap-1 cursor-pointer">
+                                <i class="fa-solid fa-fill-drip"></i> All Walls
+                            </button>
+                            <button type="button" onclick="applyMaterialToFloor()" class="py-1 px-2 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[10px] rounded-lg transition border border-amber-200 flex items-center justify-center gap-1 cursor-pointer">
+                                <i class="fa-solid fa-border-all"></i> Entire Floor
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Export & Project Hub -->
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between border-b pb-2">
+                            <h3 class="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                                <i class="fa-solid fa-file-export text-indigo-600"></i> Export & Project Hub
+                            </h3>
+                            <span class="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full uppercase">3D & Cloud</span>
+                        </div>
+
+                        <!-- Project Persistence Section -->
+                        <div class="space-y-2">
+                            <label class="block text-[11px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
+                                <i class="fa-solid fa-floppy-disk text-emerald-600"></i> Project Persistence
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button type="button" onclick="saveProjectJSON()" class="py-2 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-download"></i> Save Project (.json)
+                                </button>
+                                <button type="button" onclick="document.getElementById('project-file-input').click()" class="py-2 px-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg border border-gray-300 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-upload text-gray-600"></i> Load Project (.json)
+                                </button>
+                                <input type="file" id="project-file-input" accept=".json" onchange="loadProjectJSON(event)" class="hidden">
+                            </div>
+                            <p class="text-[10px] text-gray-500 italic">Save & restore multi-floor plans, structural walls, stairs & furnishings.</p>
+                        </div>
+
+                        <!-- 3D Model Export Section (Strict Quad Topology) -->
+                        <div class="pt-2 border-t border-gray-100 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="text-[11px] font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1">
+                                    <i class="fa-solid fa-cube text-blue-600"></i> 3D Model Export
+                                </label>
+                                <!-- Topology Badge -->
+                                <span class="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1" title="All geometry is exported with pure 4-vertex quad polygons without diagonal triangulation edges">
+                                    <i class="fa-solid fa-vector-square text-amber-600"></i> Quad Mesh (Untriangulated - 4-Vertex Polygons)
+                                </span>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-2">
+                                <button type="button" onclick="exportQuadFBX()" class="w-full py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer">
+                                    <i class="fa-solid fa-file-code"></i> Download FBX (.fbx - ASCII Quad Format)
+                                </button>
+                                <button type="button" onclick="exportQuadOBJ()" class="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs shadow-sm transition flex items-center justify-center gap-2 cursor-pointer">
+                                    <i class="fa-solid fa-shapes"></i> Download Quad OBJ (.obj)
+                                </button>
+                            </div>
+                            <p class="text-[10px] text-gray-400 italic text-center">Pure 8-vertex / 6-quad cuboids & slabs. Ready for Blender, Maya, 3ds Max, Unreal Engine.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global Clear & Undo Actions on All Steps -->
+            <div class="space-y-2 flex gap-2 pt-4 mt-auto border-t border-gray-200 bg-white">
+                <button onclick="clearPartitions()" class="flex-1 py-2 bg-red-50 text-red-600 border border-red-200 rounded-md hover:bg-red-100 transition text-sm font-medium shadow-sm">
+                    <i class="fa-solid fa-trash mr-1"></i> Clear All
+                </button>
+                <button onclick="undoPartition()" class="flex-1 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-md hover:bg-gray-100 transition text-sm font-medium shadow-sm">
+                    <i class="fa-solid fa-rotate-left mr-1"></i> Undo
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="p-4 border-t border-gray-200 bg-gray-50 flex justify-between">
+            <button id="btn-prev" onclick="prevStep()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 hidden transition">Back</button>
+            <button id="btn-next" onclick="nextStep()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 w-full font-bold transition shadow-sm">Next Step <i class="fa-solid fa-arrow-right ml-1"></i></button>
+        </div>
+    </div>
+
+    <!-- Main Workspace Area -->
+    <div class="flex-1 flex flex-col relative">
+        <!-- Top Toolbar -->
+        <div class="absolute top-4 right-4 z-20 flex bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+            <button id="btn-cost-toggle" onclick="toggleCostEstimator()" class="px-3.5 py-2 bg-white text-emerald-700 hover:bg-emerald-50 text-sm font-bold flex items-center transition border-r border-gray-200 cursor-pointer" title="Toggle Construction Cost Estimator">
+                <i class="fa-solid fa-calculator mr-1.5 text-emerald-600"></i> Cost
+            </button>
+            <button id="btn-toggle-roof" onclick="toggleRoof()" class="px-3 py-2 bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 text-sm font-bold flex items-center transition border-r border-gray-200 cursor-pointer" title="Toggle 9-Inch Solid Roof Slab">
+                <i class="fa-solid fa-hotel mr-1.5 text-blue-600"></i> Roof
+            </button>
+            <button id="btn-edit" onclick="setDrawMode('edit')" class="px-3.5 py-2 bg-white hover:bg-indigo-50 text-indigo-700 border-r border-gray-200 text-sm font-bold flex items-center transition cursor-pointer" title="Select, Move & Scale Objects">
+                <i class="fa-solid fa-arrow-pointer mr-1.5"></i> Edit
+            </button>
+            <button id="btn-measure" onclick="setDrawMode('measure')" class="px-3.5 py-2 bg-white hover:bg-pink-50 text-pink-700 border-r border-gray-200 text-sm font-bold flex items-center transition cursor-pointer" title="Interactive Ruler & Dimension Tool">
+                <i class="fa-solid fa-ruler-combined mr-1.5 text-pink-600"></i> Measure
+            </button>
+            <button id="btn-mep-layer" onclick="toggleMepLayer()" class="px-3.5 py-2 bg-white text-teal-700 hover:bg-teal-50 text-sm font-bold flex items-center transition border-r border-gray-200 cursor-pointer" title="Toggle MEP Layer (Electrical & Plumbing Layout)">
+                <i class="fa-solid fa-bolt-lightning mr-1.5 text-teal-600"></i> MEP
+            </button>
+            <button id="btn-download" onclick="downloadPlan()" class="px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 border-r border-gray-200 text-sm font-bold flex items-center transition" title="Download 2D Plan">
+                <i class="fa-solid fa-download mr-1"></i> PNG
+            </button>
+            <button id="view-2d" onclick="switchView('2d')" class="px-4 py-2 bg-blue-600 text-white text-sm font-bold flex items-center transition">
+                <i class="fa-regular fa-map mr-2"></i> 2D Plan
+            </button>
+            <button id="view-elevation" onclick="switchView('elevation')" class="px-4 py-2 bg-white text-indigo-700 hover:bg-indigo-50 border-l border-gray-200 text-sm font-bold flex items-center transition cursor-pointer" title="Architectural 2D Elevation & Section Views">
+                <i class="fa-solid fa-building mr-1.5 text-indigo-600"></i> 2D Elevations
+            </button>
+            <button id="view-3d" onclick="switchView('3d')" class="px-4 py-2 bg-white text-gray-600 hover:bg-gray-50 text-sm font-bold flex items-center transition">
+                <i class="fa-solid fa-cube mr-2"></i> 3D Orbit
+            </button>
+            <button id="view-walk" onclick="switchView('walk')" class="px-4 py-2 bg-white text-purple-700 hover:bg-purple-50 text-sm font-bold flex items-center transition">
+                <i class="fa-solid fa-person-walking mr-2"></i> Walkthrough
+            </button>
+        </div>
+
+        <!-- Walkthrough Controls Instructions Banner -->
+        <div id="walk-instructions" class="hidden absolute top-20 left-1/2 -translate-x-1/2 z-30 bg-black/75 text-white px-6 py-3 rounded-full text-sm font-medium shadow-2xl backdrop-blur-md pointer-events-none flex items-center gap-4">
+            <span><kbd class="bg-gray-700 px-2 py-1 rounded">W</kbd> <kbd class="bg-gray-700 px-2 py-1 rounded">A</kbd> <kbd class="bg-gray-700 px-2 py-1 rounded">S</kbd> <kbd class="bg-gray-700 px-2 py-1 rounded">D</kbd> to Walk</span>
+            <span class="text-gray-400">|</span>
+            <span><kbd class="bg-indigo-600 px-2 py-1 rounded">E</kbd> Open/Close Doors</span>
+            <span class="text-gray-400">|</span>
+            <span><i class="fa-solid fa-computer-mouse mr-1"></i> Click to lock/look</span>
+            <span class="text-gray-400">|</span>
+            <span><kbd class="bg-gray-700 px-2 py-1 rounded">ESC</kbd> to unlock</span>
+        </div>
+
+        <!-- 2D Canvas Container -->
+        <div id="canvas-container" class="flex-1 relative bg-[#e5e7eb]">
+            <!-- Floating MEP Placement Palette -->
+            <div id="mep-floating-palette" class="hidden absolute top-4 left-4 z-20 bg-white/95 backdrop-blur-md border border-teal-200 rounded-2xl shadow-2xl p-3.5 w-76 max-h-[85vh] overflow-y-auto select-none transition-all">
+                <div class="flex items-center justify-between border-b pb-2 mb-2.5">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center text-sm shadow-xs">
+                            <i class="fa-solid fa-bolt-lightning"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-gray-800">MEP Layer Studio</div>
+                            <div class="text-[9px] text-teal-600 font-semibold uppercase tracking-wider">Electrical & Plumbing</div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="toggleMepLayer()" class="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition cursor-pointer" title="Hide MEP Layer">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Active Floor Info -->
+                <div class="flex items-center justify-between bg-teal-50/70 border border-teal-100 rounded-lg px-2.5 py-1 mb-2.5 text-[11px]">
+                    <span class="text-teal-800 font-medium">Active Level:</span>
+                    <span id="mep-active-floor-label" class="font-bold text-teal-900">Ground Floor</span>
+                </div>
+
+                <!-- Category A: Electrical Assets -->
+                <div class="mb-3">
+                    <div class="text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <i class="fa-solid fa-plug text-amber-500"></i> Electrical Fixtures
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button type="button" onclick="setDrawMode('mep_ceiling_fan')" id="float-mep_ceiling_fan" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-amber-400 transition flex items-center gap-2 text-left cursor-pointer">
+                            <div class="w-6 h-6 rounded bg-sky-50 text-sky-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-fan"></i></div>
+                            <div class="truncate">
+                                <div class="text-[11px] font-bold text-gray-800 truncate">Ceiling Fan</div>
+                                <div class="text-[9px] text-gray-400">3 Blades • Ceiling</div>
+                            </div>
+                        </button>
+                        <button type="button" onclick="setDrawMode('mep_wall_ac')" id="float-mep_wall_ac" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-amber-400 transition flex items-center gap-2 text-left cursor-pointer">
+                            <div class="w-6 h-6 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-snowflake"></i></div>
+                            <div class="truncate">
+                                <div class="text-[11px] font-bold text-gray-800 truncate">Wall AC Unit</div>
+                                <div class="text-[9px] text-gray-400">Split • High Wall</div>
+                            </div>
+                        </button>
+                        <button type="button" onclick="setDrawMode('mep_switchboard')" id="float-mep_switchboard" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-amber-400 transition flex items-center gap-2 text-left cursor-pointer">
+                            <div class="w-6 h-6 rounded bg-yellow-50 text-yellow-700 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-toggle-on"></i></div>
+                            <div class="truncate">
+                                <div class="text-[11px] font-bold text-gray-800 truncate">Switchboard</div>
+                                <div class="text-[9px] text-gray-400">Modular • 4ft H</div>
+                            </div>
+                        </button>
+                        <button type="button" onclick="setDrawMode('mep_light_ceiling')" id="float-mep_light_ceiling" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-amber-400 transition flex items-center gap-2 text-left cursor-pointer">
+                            <div class="w-6 h-6 rounded bg-amber-50 text-amber-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-lightbulb"></i></div>
+                            <div class="truncate">
+                                <div class="text-[11px] font-bold text-gray-800 truncate">Ceiling Light</div>
+                                <div class="text-[9px] text-gray-400">Pendant / Orb</div>
+                            </div>
+                        </button>
+                        <button type="button" onclick="setDrawMode('mep_mcb_box')" id="float-mep_mcb_box" class="mep-tool-btn col-span-2 p-1.5 rounded-lg border border-gray-200 bg-white hover:border-amber-400 transition flex items-center gap-2 text-left cursor-pointer">
+                            <div class="w-6 h-6 rounded bg-orange-50 text-orange-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-bolt"></i></div>
+                            <div class="truncate">
+                                <div class="text-[11px] font-bold text-gray-800 truncate">Distribution Box (MCB / DB)</div>
+                                <div class="text-[9px] text-gray-400">Main Electrical Panel • Eye Level</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Category B: Plumbing & Sanitary Assets -->
+                <div class="mb-3 border-t pt-2.5">
+                    <div class="text-[10px] font-bold text-teal-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <i class="fa-solid fa-faucet-drip text-teal-600"></i> Plumbing & Sanitary
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button type="button" onclick="setDrawMode('mep_wc')" id="float-mep_wc" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-teal-400 transition flex items-center gap-2 text-left cursor-pointer">
+                            <div class="w-6 h-6 rounded bg-cyan-50 text-cyan-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-toilet"></i></div>
+                            <div class="truncate">
+                                <div class="text-[11px] font-bold text-gray-800 truncate">Toilet (WC)</div>
+                                <div class="text-[9px] text-gray-400">Western • Ceramic</div>
+                            </div>
+                        </button>
+                        <button type="button" onclick="setDrawMode('mep_wash_basin')" id="float-mep_wash_basin" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-teal-400 transition flex items-center gap-2 text-left cursor-pointer">
+                            <div class="w-6 h-6 rounded bg-sky-50 text-sky-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-sink"></i></div>
+                            <div class="truncate">
+                                <div class="text-[11px] font-bold text-gray-800 truncate">Wash Basin</div>
+                                <div class="text-[9px] text-gray-400">Sink + Tap • 2.8ft</div>
+                            </div>
+                        </button>
+                        <button type="button" onclick="setDrawMode('mep_shower')" id="float-mep_shower" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-teal-400 transition flex items-center gap-2 text-left cursor-pointer">
+                            <div class="w-6 h-6 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-shower"></i></div>
+                            <div class="truncate">
+                                <div class="text-[11px] font-bold text-gray-800 truncate">Shower Head</div>
+                                <div class="text-[9px] text-gray-400">Rain Rose • 7ft H</div>
+                            </div>
+                        </button>
+                        <button type="button" onclick="setDrawMode('mep_drain_trap')" id="float-mep_drain_trap" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-teal-400 transition flex items-center gap-2 text-left cursor-pointer">
+                            <div class="w-6 h-6 rounded bg-slate-50 text-slate-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-filter"></i></div>
+                            <div class="truncate">
+                                <div class="text-[11px] font-bold text-gray-800 truncate">Drain Trap</div>
+                                <div class="text-[9px] text-gray-400">Floor Grate • Waste</div>
+                            </div>
+                        </button>
+                        <button type="button" onclick="setDrawMode('mep_kitchen_sink')" id="float-mep_kitchen_sink" class="mep-tool-btn col-span-2 p-1.5 rounded-lg border border-gray-200 bg-white hover:border-teal-400 transition flex items-center gap-2 text-left cursor-pointer">
+                            <div class="w-6 h-6 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-faucet-drip"></i></div>
+                            <div class="truncate">
+                                <div class="text-[11px] font-bold text-gray-800 truncate">Kitchen Sink</div>
+                                <div class="text-[9px] text-gray-400">Double Bowl • Stainless Steel</div>
+                            </div>
+                        </button>
+                        <button type="button" onclick="setDrawMode('mep_overhead_tank')" id="float-mep_overhead_tank" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-teal-400 transition flex items-center gap-2 text-left cursor-pointer">
+                            <div class="w-6 h-6 rounded bg-indigo-50 text-indigo-700 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-database"></i></div>
+                            <div class="truncate">
+                                <div class="text-[11px] font-bold text-gray-800 truncate">Overhead Tank</div>
+                                <div class="text-[9px] text-gray-400">1000L • Top Roof</div>
+                            </div>
+                        </button>
+                        <button type="button" onclick="setDrawMode('mep_septic_tank')" id="float-mep_septic_tank" class="mep-tool-btn p-1.5 rounded-lg border border-gray-200 bg-white hover:border-teal-400 transition flex items-center gap-2 text-left cursor-pointer">
+                            <div class="w-6 h-6 rounded bg-stone-50 text-stone-700 flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-boxes-stacked"></i></div>
+                            <div class="truncate">
+                                <div class="text-[11px] font-bold text-gray-800 truncate">Septic Tank</div>
+                                <div class="text-[9px] text-gray-400">UGT • Underground</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Footer Tips & Clear -->
+                <div class="pt-2 border-t flex items-center justify-between text-[10px] text-gray-500">
+                    <span><i class="fa-solid fa-circle-info text-teal-600"></i> Click to place, press <kbd class="bg-gray-100 border px-1 rounded">R</kbd> to rotate</span>
+                    <button type="button" onclick="clearMepAssetsOnFloor()" class="text-red-500 hover:text-red-700 font-bold hover:underline cursor-pointer">Clear Floor</button>
+                </div>
+            </div>
+
+            <canvas id="blueprint-canvas"></canvas>
+            
+            <!-- Interactive Ruler Helper Bar -->
+            <div id="measure-actions-bar" class="hidden absolute top-4 left-20 z-20 bg-white/95 backdrop-blur-md border border-pink-200 shadow-md rounded-xl px-3 py-1.5 flex items-center gap-2 text-xs select-none">
+                <span class="font-bold text-pink-700 flex items-center gap-1.5"><i class="fa-solid fa-ruler-combined"></i> Ruler Active</span>
+                <span class="text-gray-300">|</span>
+                <span class="text-gray-600 text-[11px]">Click & drag between any 2 points to measure clearances</span>
+                <button onclick="clearMeasurements()" class="ml-2 px-2 py-0.5 bg-pink-50 hover:bg-pink-100 text-pink-700 font-semibold rounded-md border border-pink-200 transition cursor-pointer text-[11px]" title="Clear all placed ruler measurements">
+                    <i class="fa-solid fa-trash-can mr-1"></i> Clear
+                </button>
+            </div>
+
+            <div id="zoom-controls" class="absolute bottom-6 right-6 z-20 flex bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+                <button onclick="changeZoom(0.2)" class="px-4 py-2 hover:bg-gray-100 text-gray-700 font-bold border-r border-gray-200 transition" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
+                <button onclick="resetZoom()" class="px-4 py-2 hover:bg-gray-100 text-gray-700 font-bold border-r border-gray-200 transition text-xs tracking-wider">RESET</button>
+                <button onclick="changeZoom(-0.2)" class="px-4 py-2 hover:bg-gray-100 text-gray-700 font-bold transition" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
+            </div>
+
+            <div id="edit-overlay" class="hidden absolute z-30 bg-white border border-gray-300 shadow-xl rounded-md p-1 flex items-center gap-1 pointer-events-auto transition-all">
+                <button id="btn-flip-swing" onclick="toggleDoorSwing()" class="hidden px-2 py-1.5 text-xs font-bold text-amber-600 hover:bg-amber-50 rounded transition flex items-center" title="Flip Door Swing">
+                    <i class="fa-solid fa-arrows-rotate mr-1"></i> Flip Swing
+                </button>
+                <div id="flip-divider" class="hidden w-px bg-gray-200 h-4 my-auto"></div>
+
+                <!-- Balcony Wall 2D Height Control -->
+                <div id="balcony-height-control" class="hidden flex items-center gap-1.5 px-2 py-1 text-xs font-bold text-sky-700 border-r border-gray-200">
+                    <span class="text-[10px] text-gray-500 uppercase">Height:</span>
+                    <select id="edit-balcony-height" onchange="changeSelectedBalconyHeight(this.value)" class="bg-sky-50 border border-sky-300 rounded px-1 py-0.5 text-xs text-sky-800 font-bold outline-none cursor-pointer">
+                        <option value="2">2 ft</option>
+                        <option value="2.5">2.5 ft</option>
+                        <option value="3">3 ft</option>
+                        <option value="3.5">3.5 ft</option>
+                        <option value="4">4 ft</option>
+                    </select>
+                </div>
+
+                <!-- Staircase 2D Controls -->
+                <div id="stair-edit-control" class="hidden flex items-center gap-1.5 px-2 py-1 text-xs font-bold text-amber-800 border-r border-gray-200">
+                    <span id="edit-stair-title" class="text-[11px] text-amber-900 font-bold flex items-center gap-1"><i class="fa-solid fa-stairs text-amber-600"></i> Stair</span>
+                    <button type="button" onclick="rotateCurrentStair(90)" class="p-1 hover:bg-amber-100 rounded text-amber-800 transition" title="Rotate 90 Degrees"><i class="fa-solid fa-rotate-right"></i></button>
+                    <button type="button" onclick="toggleSelectedStairVoid()" id="btn-edit-stair-void" class="px-1.5 py-0.5 rounded bg-amber-100 text-[10px] text-amber-800 font-bold hover:bg-amber-200 transition" title="Toggle Ceiling Void Cutout">Void: ON</button>
+                </div>
+
+                <!-- Pillar 2D Controls -->
+                <div id="pillar-edit-control" class="hidden flex items-center gap-1.5 px-2 py-1 text-xs font-bold text-indigo-800 border-r border-gray-200">
+                    <span id="edit-pillar-title" class="text-[11px] text-indigo-900 font-bold flex items-center gap-1"><i class="fa-solid fa-monument text-indigo-600"></i> Pillar</span>
+                    <button type="button" onclick="rotateCurrentPillar(90)" class="p-1 hover:bg-indigo-100 rounded text-indigo-800 transition" title="Toggle Orientation (Rotate 90°)"><i class="fa-solid fa-rotate-right"></i></button>
+                </div>
+
+                <button onclick="deleteSelected()" class="px-2 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 hover:text-red-700 rounded transition flex items-center" title="Delete Object">
+                    <i class="fa-solid fa-trash mr-1"></i> Delete
+                </button>
+                <div class="w-px bg-gray-200 h-4 my-auto"></div>
+                <button onclick="deselectObject()" class="px-2 py-1.5 text-xs font-bold text-gray-500 hover:bg-gray-100 rounded transition" title="Deselect">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="absolute top-4 left-4 w-12 h-12 bg-white/90 rounded-full shadow-md border-2 border-blue-200 flex items-center justify-center pointer-events-none z-10">
+                <div class="relative w-full h-full text-[9px] font-bold text-gray-600">
+                    <span class="absolute top-0.5 left-1/2 -translate-x-1/2 text-red-600 font-extrabold text-[11px]">N</span>
+                    <span class="absolute bottom-0.5 left-1/2 -translate-x-1/2">S</span>
+                    <span class="absolute right-1 top-1/2 -translate-y-1/2">E</span>
+                    <span class="absolute left-1 top-1/2 -translate-y-1/2">W</span>
+                    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Architectural 2D Elevation & Section View Container -->
+        <div id="elevation-container" class="flex-1 relative bg-slate-100 hidden flex-col overflow-hidden select-none">
+            <!-- Top Elevation Sub-Navigation Bar -->
+            <div class="h-14 bg-white border-b border-gray-200 px-4 flex items-center justify-between shadow-xs z-10 shrink-0">
+                <div class="flex items-center gap-1.5 overflow-x-auto">
+                    <span class="text-xs font-bold text-gray-500 uppercase tracking-wider mr-2 flex items-center gap-1.5 shrink-0">
+                        <i class="fa-solid fa-drafting-compass text-indigo-600"></i> Projections:
+                    </span>
+                    <button id="elev-tab-front" onclick="switchElevationTab('front')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-indigo-600 text-white shadow-xs cursor-pointer">
+                        <i class="fa-solid fa-arrow-up"></i> Front Elevation
+                    </button>
+                    <button id="elev-tab-back" onclick="switchElevationTab('back')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer">
+                        <i class="fa-solid fa-arrow-down"></i> Back Elevation
+                    </button>
+                    <button id="elev-tab-left" onclick="switchElevationTab('left')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer">
+                        <i class="fa-solid fa-arrow-left"></i> Left Side
+                    </button>
+                    <button id="elev-tab-right" onclick="switchElevationTab('right')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 cursor-pointer">
+                        <i class="fa-solid fa-arrow-right"></i> Right Side
+                    </button>
+                    <button id="elev-tab-section" onclick="switchElevationTab('section')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-purple-700 hover:text-purple-900 hover:bg-purple-50 cursor-pointer">
+                        <i class="fa-solid fa-scissors text-purple-600"></i> Vertical Cross-Section (A-A)
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                    <button onclick="resetElevationView()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold flex items-center gap-1 transition cursor-pointer" title="Center and Fit Drawing">
+                        <i class="fa-solid fa-compress"></i> Fit View
+                    </button>
+                    <button onclick="downloadElevationSheet()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition cursor-pointer" title="Export High-Resolution Architectural Sheet with Title Block">
+                        <i class="fa-solid fa-file-arrow-down"></i> Download Elevation Sheet (PNG)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Elevation Canvas Wrapper -->
+            <div id="elevation-canvas-wrapper" class="flex-1 relative overflow-hidden bg-[#f8fafc]">
+                <canvas id="elevation-canvas" class="w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
+
+                <!-- Floating Quick Hint -->
+                <div class="absolute bottom-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm text-[11px] text-gray-600 pointer-events-none flex items-center gap-2">
+                    <span><i class="fa-solid fa-computer-mouse text-indigo-600 mr-1"></i> Pan: Drag with Mouse</span>
+                    <span class="text-gray-300">|</span>
+                    <span><i class="fa-solid fa-magnifying-glass-plus text-indigo-600 mr-1"></i> Zoom: Scroll Wheel</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3D WebGL Container -->
+        <div id="webgl-container" class="flex-1 bg-gray-900 relative">
+            <!-- Active Paint Mode HUD Indicator -->
+            <div id="active-paint-hud" class="hidden absolute top-6 left-1/2 -translate-x-1/2 z-30 bg-gray-900/90 backdrop-blur-md text-white px-5 py-2.5 rounded-full shadow-2xl border border-white/20 flex items-center gap-3 text-xs font-medium select-none transition-all">
+                <div id="paint-hud-swatch" class="w-4 h-4 rounded-full border border-white shadow-xs shrink-0"></div>
+                <span>Paint Mode: <b id="paint-hud-name" class="text-amber-300">Warm Ivory</b> — Click any wall or floor in 3D to paint</span>
+                <button type="button" onclick="clearActiveMaterial()" class="text-gray-400 hover:text-white p-1 ml-1 cursor-pointer" title="Cancel Paint Mode"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- Interactive Door Proximity HUD Indicator -->
+            <div id="door-interaction-hud" class="hidden absolute top-20 left-1/2 -translate-x-1/2 z-30 bg-gray-900/90 backdrop-blur-md text-white px-5 py-2.5 rounded-full shadow-2xl border border-white/20 flex items-center gap-3 text-xs font-semibold select-none pointer-events-none transition-all">
+                <span class="bg-indigo-600 text-white px-2.5 py-0.5 rounded font-mono text-xs font-extrabold shadow-sm">E</span>
+                <span id="door-hud-text" class="text-amber-300">Press [E] to Open Door</span>
+            </div>
+
+            <!-- Real-Time Day/Night Lighting & Sun Shadow Simulator Floating Widget -->
+            <div id="sun-simulator-bar" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 bg-gray-900/80 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-2xl border border-white/15 flex items-center gap-4 select-none transition-all">
+                <!-- Dynamic Time Badge -->
+                <div class="flex items-center gap-2.5 min-w-[175px] pr-3 border-r border-white/15">
+                    <div id="sun-icon-container" class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg shadow-inner">
+                        <i id="sun-badge-icon" class="fa-solid fa-sun text-amber-400"></i>
+                    </div>
+                    <div class="leading-tight">
+                        <div id="sun-time-display" class="font-bold text-sm text-white tracking-wide">12:00 PM - Noon</div>
+                        <div id="sun-phase-display" class="text-[10px] font-semibold text-amber-300 uppercase tracking-wider">NOON</div>
+                    </div>
+                </div>
+
+                <!-- Time Slider with East/West arc indicators -->
+                <div class="flex flex-col gap-1 w-48 sm:w-56">
+                    <div class="flex justify-between text-[10px] font-bold text-gray-400 px-0.5">
+                        <span class="text-indigo-300">00:00</span>
+                        <span class="text-amber-400 font-semibold">06:00 (E)</span>
+                        <span class="text-yellow-300 font-semibold">12:00</span>
+                        <span class="text-orange-400 font-semibold">18:00 (W)</span>
+                        <span class="text-indigo-300">24:00</span>
+                    </div>
+                    <input type="range" id="sun-time-slider" min="0" max="24" step="0.25" value="12"
+                           oninput="updateSunSimulation(parseFloat(this.value))"
+                           class="w-full h-2 bg-gray-700/90 rounded-lg appearance-none cursor-pointer accent-amber-400 hover:accent-amber-300 transition-all">
+                </div>
+
+                <!-- Quick Preset Buttons -->
+                <div class="flex items-center gap-1.5 pl-2 border-l border-white/15">
+                    <button type="button" onclick="setSunPreset(7.0)" id="sun-btn-morning" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white/10 hover:bg-amber-500/30 text-gray-200 hover:text-amber-200 transition cursor-pointer flex items-center gap-1" title="Morning (7:00 AM)">
+                        <i class="fa-solid fa-cloud-sun text-[11px] text-amber-400"></i> Morning
+                    </button>
+                    <button type="button" onclick="setSunPreset(12.0)" id="sun-btn-noon" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-yellow-400 text-gray-900 transition cursor-pointer flex items-center gap-1 shadow-sm" title="Noon (12:00 PM)">
+                        <i class="fa-solid fa-sun text-[11px] text-gray-900"></i> Noon
+                    </button>
+                    <button type="button" onclick="setSunPreset(17.5)" id="sun-btn-evening" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white/10 hover:bg-orange-500/30 text-gray-200 hover:text-orange-200 transition cursor-pointer flex items-center gap-1" title="Evening (5:30 PM)">
+                        <i class="fa-solid fa-cloud-sun text-[11px] text-orange-400"></i> Evening
+                    </button>
+                    <button type="button" onclick="setSunPreset(21.0)" id="sun-btn-night" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white/10 hover:bg-indigo-500/30 text-gray-200 hover:text-indigo-200 transition cursor-pointer flex items-center gap-1" title="Night (9:00 PM)">
+                        <i class="fa-solid fa-moon text-[11px] text-indigo-300"></i> Night
+                    </button>
+                </div>
+
+                <!-- Interior Lights Toggle -->
+                <div class="pl-2 border-l border-white/15">
+                    <button type="button" onclick="toggleInteriorLights()" id="btn-toggle-interior-lights" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 hover:bg-amber-400/20 text-yellow-300 transition cursor-pointer flex items-center gap-1.5 border border-white/10" title="Toggle Interior Lights (Auto / Forced ON / Forced OFF)">
+                        <i id="interior-lights-icon" class="fa-solid fa-lightbulb text-amber-400"></i>
+                        <span id="interior-lights-text">Lights: Auto</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3D Direct Editing & Transform Gizmo HUD -->
+        <div id="gizmo-3d-hud" class="hidden absolute bottom-24 left-1/2 -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md shadow-2xl rounded-2xl px-4 py-2.5 border border-gray-200 flex items-center gap-3 text-xs font-medium select-none transition-all">
+            <div class="flex items-center gap-2 pr-3 border-r border-gray-200">
+                <div id="gizmo-obj-icon-bg" class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shadow-xs">
+                    <i id="gizmo-obj-icon" class="fa-solid fa-cube"></i>
+                </div>
+                <div>
+                    <div id="gizmo-obj-title" class="font-bold text-gray-800 text-xs leading-tight">Selected Object</div>
+                    <div id="gizmo-obj-subtitle" class="text-[10px] text-gray-500 leading-tight">Floor 1</div>
+                </div>
+            </div>
+
+            <!-- Directional Move Nudge Buttons (3D Gizmo) -->
+            <div class="flex items-center gap-1">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-1">Move:</span>
+                <button type="button" onclick="nudge3DObject('left')" class="w-7 h-7 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-600 rounded-lg border border-gray-200 transition cursor-pointer" title="Move Left (←)"><i class="fa-solid fa-arrow-left"></i></button>
+                <button type="button" onclick="nudge3DObject('front')" class="w-7 h-7 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-600 rounded-lg border border-gray-200 transition cursor-pointer" title="Move Forward (↑)"><i class="fa-solid fa-arrow-up"></i></button>
+                <button type="button" onclick="nudge3DObject('back')" class="w-7 h-7 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-600 rounded-lg border border-gray-200 transition cursor-pointer" title="Move Backward (↓)"><i class="fa-solid fa-arrow-down"></i></button>
+                <button type="button" onclick="nudge3DObject('right')" class="w-7 h-7 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-600 rounded-lg border border-gray-200 transition cursor-pointer" title="Move Right (→)"><i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+
+            <!-- Rotate 90° Button -->
+            <div id="gizmo-rotate-container" class="flex items-center pl-2 border-l border-gray-200">
+                <button type="button" onclick="rotate3DObject(90)" class="px-2.5 py-1.5 bg-gray-100 hover:bg-blue-50 text-gray-700 hover:text-blue-700 rounded-lg font-bold text-xs flex items-center gap-1.5 transition cursor-pointer" title="Rotate 90 Degrees">
+                    <i class="fa-solid fa-rotate-right text-blue-600"></i> Rotate
+                </button>
+            </div>
+
+            <!-- Balcony Wall 3D Height Selector -->
+            <div id="gizmo-height-container" class="hidden flex items-center gap-1.5 pl-2 border-l border-gray-200">
+                <span class="text-[10px] font-bold text-sky-800 uppercase">Height:</span>
+                <div class="flex gap-1" id="gizmo-height-buttons">
+                    <button type="button" onclick="setBalconyWallHeight(2)" id="g-btn-h-2" class="px-2 py-1 rounded bg-gray-100 text-gray-700 font-bold hover:bg-sky-100 transition text-[11px] cursor-pointer">2 ft</button>
+                    <button type="button" onclick="setBalconyWallHeight(2.5)" id="g-btn-h-2_5" class="px-2 py-1 rounded bg-gray-100 text-gray-700 font-bold hover:bg-sky-100 transition text-[11px] cursor-pointer">2.5 ft</button>
+                    <button type="button" onclick="setBalconyWallHeight(3)" id="g-btn-h-3" class="px-2 py-1 rounded bg-sky-600 text-white font-bold transition text-[11px] cursor-pointer">3 ft</button>
+                    <button type="button" onclick="setBalconyWallHeight(3.5)" id="g-btn-h-3_5" class="px-2 py-1 rounded bg-gray-100 text-gray-700 font-bold hover:bg-sky-100 transition text-[11px] cursor-pointer">3.5 ft</button>
+                    <button type="button" onclick="setBalconyWallHeight(4)" id="g-btn-h-4" class="px-2 py-1 rounded bg-gray-100 text-gray-700 font-bold hover:bg-sky-100 transition text-[11px] cursor-pointer">4 ft</button>
+                </div>
+            </div>
+
+            <!-- Staircase 3D Void & Controls -->
+            <div id="gizmo-stair-controls" class="hidden flex items-center gap-1.5 pl-2 border-l border-gray-200">
+                <button type="button" onclick="toggleSelectedStairVoid()" id="g-btn-stair-void" class="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold rounded-lg text-xs flex items-center gap-1 transition cursor-pointer" title="Toggle Upper Floor Ceiling Void Cutout">
+                    <i class="fa-solid fa-scissors text-amber-700"></i> <span id="g-stair-void-text">Void: ON</span>
+                </button>
+                <button type="button" onclick="flipCurrentStair()" class="px-2 py-1 bg-gray-100 hover:bg-amber-50 text-gray-700 hover:text-amber-800 font-bold rounded-lg text-xs transition cursor-pointer" title="Flip Ascending Direction">
+                    <i class="fa-solid fa-arrows-left-right text-xs"></i>
+                </button>
+            </div>
+
+            <!-- Pillar 3D Controls -->
+            <div id="gizmo-pillar-controls" class="hidden flex items-center gap-1.5 pl-2 border-l border-gray-200">
+                <button type="button" onclick="rotate3DObject(90)" class="px-2.5 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg text-xs flex items-center gap-1 transition cursor-pointer" title="Toggle Orientation (Rotate 90°)">
+                    <i class="fa-solid fa-rotate-right text-indigo-700"></i> Rotate
+                </button>
+            </div>
+
+            <!-- Delete Selected in 3D -->
+            <div class="pl-2 border-l border-gray-200">
+                <button type="button" onclick="delete3DSelected()" class="w-7 h-7 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition cursor-pointer" title="Delete Selected Object"><i class="fa-solid fa-trash-can text-xs"></i></button>
+            </div>
+
+            <!-- Deselect / Dismiss -->
+            <button type="button" onclick="deselect3DObject()" class="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition cursor-pointer" title="Deselect"><i class="fa-solid fa-xmark text-sm"></i></button>
+        </div>
+
+        <!-- Fixed Global Navigation Bar -->
+        <div id="global-nav-bar" class="absolute right-4 top-1/2 -translate-y-1/2 z-50 bg-white/90 backdrop-blur-md shadow-2xl rounded-2xl p-2 flex flex-col gap-2 border border-gray-200">
+            <button onclick="goToStep(1)" id="nav-step-1" title="Plot Dimensions" class="nav-btn w-12 h-12 flex items-center justify-center rounded-xl text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 cursor-pointer">
+                <i class="fa-solid fa-draw-polygon text-lg"></i>
+            </button>
+            <button onclick="goToStep(2)" id="nav-step-2" title="Road & Main Door" class="nav-btn w-12 h-12 flex items-center justify-center rounded-xl text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 cursor-pointer">
+                <i class="fa-solid fa-road text-lg"></i>
+            </button>
+            <button onclick="goToStep(3)" id="nav-step-3" title="Design & Vastu" class="nav-btn w-12 h-12 flex items-center justify-center rounded-xl text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 cursor-pointer">
+                <i class="fa-solid fa-compass-drafting text-lg"></i>
+            </button>
+            <button onclick="goToStep(4)" id="nav-step-4" title="Structural Assets" class="nav-btn w-12 h-12 flex items-center justify-center rounded-xl text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 cursor-pointer">
+                <i class="fa-solid fa-stairs text-lg"></i>
+            </button>
+            <button onclick="goToStep(5)" id="nav-step-5" title="Furniture & Decor" class="nav-btn w-12 h-12 flex items-center justify-center rounded-xl text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 cursor-pointer">
+                <i class="fa-solid fa-couch text-lg"></i>
+            </button>
+            <button onclick="goToStep(6)" id="nav-step-6" title="3D Walkthrough" class="nav-btn w-12 h-12 flex items-center justify-center rounded-xl text-gray-500 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 cursor-pointer">
+                <i class="fa-solid fa-person-walking text-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modular Application Scripts (Separation of Concerns) -->
+    <script src="js/state.js"></script>
+    <script src="js/vastu.js"></script>
+    <script src="js/canvas2d.js"></script>
+    <script src="js/three3d.js"></script>
+    <script src="js/elevation.js"></script>
+    <script src="js/exporter.js"></script>
+    <script src="js/steps/step1_plot.js"></script>
+    <script src="js/steps/step2_roads.js"></script>
+    <script src="js/steps/step3_walls.js"></script>
+    <script src="js/steps/step4_structure.js"></script>
+    <script src="js/steps/step5_furniture.js"></script>
+    <script src="js/steps/step6_view3d.js"></script>
+    <script src="js/app.js"></script>
+
+</body>
+</html>
